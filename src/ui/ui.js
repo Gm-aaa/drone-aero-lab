@@ -136,10 +136,11 @@ export function renderPartInfo(el, part) {
 
 export function renderPartList(el, parts, selectedId, onSelect) {
   // 按 name 去重，展示唯一部件类型
+  const selectedName = parts.find((p) => p.id === selectedId)?.name;
   const seen = new Map();
   for (const p of parts) if (!seen.has(p.name)) seen.set(p.name, p);
   el.innerHTML = [...seen.values()]
-    .map((p) => `<button class="part-btn${p.id === selectedId ? ' selected' : ''}" data-id="${p.id}">${p.name}</button>`)
+    .map((p) => `<button class="part-btn${p.name === selectedName ? ' selected' : ''}" data-id="${p.id}">${p.name}</button>`)
     .join('');
   el.querySelectorAll('button').forEach((b) => { b.onclick = () => onSelect(b.dataset.id); });
 }
