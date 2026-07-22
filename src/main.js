@@ -1,5 +1,6 @@
+import * as THREE from 'three';
 import { createScene } from './scene/scene.js';
-import { buildDrone, DRONES, applyMaterial } from './builder/builder.js';
+import { buildDrone, DRONES, applyMaterial, highlightPart } from './builder/builder.js';
 import { createViz } from './viz/viz.js';
 import { computeLift, computeWeight, liftStatus, windVector, MATERIALS } from './aero/aero.js';
 import { createState } from './state.js';
@@ -34,6 +35,22 @@ createUI(panel, { state, onSubtypeChange: () => { rebuild(); recompute(); } });
 renderPartInfo(panel.querySelector('#partinfo'), null);
 state.subscribe(recompute);
 recompute();
+
+// Part picking with raycaster
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+ctx.renderer.domElement.addEventListener('click', (e) => {
+  const r = ctx.renderer.domElement.getBoundingClientRect();
+  mouse.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+  mouse.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, ctx.camera);
+  const hits = raycaster.intersectObjects(current.group.children, false);
+  if (hits.length) {
+    const part = hits[0].object.userData.part;
+    highlightPart(current.meshes, part.id);
+    renderPartInfo(panel.querySelector('#partinfo'), part);
+  }
+});
 
 let last = performance.now();
 ctx.start(() => { const now = performance.now(); viz.tick((now - last) / 1000); last = now; });
