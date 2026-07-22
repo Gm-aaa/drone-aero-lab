@@ -5,7 +5,7 @@ import { createViz } from './viz/viz.js';
 import { createAxes, createGizmo } from './viz/axes.js';
 import { createAirfoil } from './viz/airfoil.js';
 import { createAeroChart } from './viz/aerochart.js';
-import { computeWeight, computeDrag, MATERIALS, perRotorLift, netLift, windVector3D } from './aero/aero.js';
+import { computeWeight, computeDrag, MATERIALS, perRotorLift, netLift, windVector3D, bladeLinearSpeed } from './aero/aero.js';
 import { createState } from './state.js';
 import { createUI, renderReadout, renderPartInfo, renderPartList } from './ui/ui.js';
 
@@ -19,7 +19,7 @@ const panel = document.getElementById('panel');
 const airfoil = createAirfoil(document.getElementById('airfoil'));
 const aerochart = createAeroChart(document.getElementById('aerochart'));
 
-const state = createState({ subtype: 'octa', aoaDeg: 8, windSpeed: 4, windDirDeg: 0, materialId: 'carbon', updraft: 0 });
+const state = createState({ subtype: 'octa', aoaDeg: 8, windSpeed: 4, windDirDeg: 0, materialId: 'carbon', updraft: 0, rpm: 2200, bladeLen: 0.42 });
 
 let subtype, current;
 function rebuild() {
@@ -43,8 +43,13 @@ function rebuild() {
 function recompute() {
   const s = state.get();
   applyMaterial(current.meshes, subtype, s.materialId);
-  applyBladeTwist(current.meshes, subtype, s.aoaDeg);
-  const aeroP = { bladeSpeed: 36, refArea: 0.02, aoaDeg: s.aoaDeg, airDensity: 1.225 };
+  applyBladeTwist(current.meshes, subtype, s.aoaDeg, s.bladeLen);
+  // 转速+桨长 → 桨叶线速度；参考面积随桨长线性缩放(0.42m 时保持原标定 0.02)
+  const aeroP = {
+    bladeSpeed: bladeLinearSpeed(s.rpm, s.bladeLen),
+    refArea: s.bladeLen * (0.02 / 0.42),
+    aoaDeg: s.aoaDeg, airDensity: 1.225,
+  };
   const single = perRotorLift(aeroP);
   const perLift = Array.from({ length: subtype.rotorCount }, () => single);
   const totalLift = single * subtype.rotorCount;
@@ -100,7 +105,19 @@ ctx.renderer.domElement.addEventListener('click', (e) => {
 });
 
 let last = performance.now();
+let spinAngle = 0;
 ctx.start(
-  () => { const now = performance.now(); viz.tick((now - last) / 1000); last = now; },
+  () => {
+    const now = performance.now();
+    const dt = (now - last) / 1000;
+    last = now;
+    viz.tick(dt);
+    // 螺旋桨按转速旋转(视觉减速系数 0.05,正反桨方向相反)
+    spinAngle += (state.get().rpm / 60) * 2 * Math.PI * 0.05 * dt;
+    for (const mesh of Object.values(current.meshes)) {
+      const p = mesh.userData.part;
+      if (p.spin) mesh.rotation.y = (p.spin === 'cw' ? -1 : 1) * spinAngle;
+    }
+  },
   () => gizmo.render(),
 );

@@ -56,6 +56,8 @@ export function createUI(panel, { state, onSubtypeChange }) {
 
     ${card('飞行参数', `
       ${slider('桨叶迎角 α', 'aoa', 0, 30, s.aoaDeg, 1, '°', 'var(--lift)')}
+      ${slider('转速', 'rpm', 1000, 4000, s.rpm ?? 2200, 100, ' RPM', 'var(--lift)')}
+      ${slider('桨叶长度', 'bladelen', 0.25, 0.6, s.bladeLen ?? 0.42, 0.01, ' m', 'var(--lift)')}
       ${slider('风速', 'wind', 0, 15, s.windSpeed, 0.5, ' m/s', 'var(--wind)')}
       ${slider('风向', 'wdir', 0, 360, s.windDirDeg, 5, '°', 'var(--wind)')}
       ${slider('垂直气流', 'updraft', -6, 6, s.updraft ?? 0, 0.5, ' m/s', 'var(--warn)')}
@@ -95,6 +97,8 @@ export function createUI(panel, { state, onSubtypeChange }) {
     };
   };
   bind('aoa', 'aoaDeg', 'var(--lift)');
+  bind('rpm', 'rpm', 'var(--lift)');
+  bind('bladelen', 'bladeLen', 'var(--lift)');
   bind('wind', 'windSpeed', 'var(--wind)');
   bind('wdir', 'windDirDeg', 'var(--wind)');
   bind('updraft', 'updraft', 'var(--warn)');
