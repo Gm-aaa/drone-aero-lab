@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildSubtypeParts, DRONES } from '../data/drones.js';
+import { buildSubtypeParts, getSubtypeParts, DRONES } from '../data/drones.js';
 import { MATERIALS } from '../aero/aero.js';
 
 export function makeTwistedBlade(length, chord, rootPitchDeg, tipPitchDeg, segments = 10) {
@@ -37,7 +37,7 @@ export function buildDrone(subtype, materialId) {
   const group = new THREE.Group();
   const meshes = {};
   const structColor = MATERIALS[materialId].color;
-  for (const part of buildSubtypeParts(subtype)) {
+  for (const part of getSubtypeParts(subtype)) {
     const color = part.materialRole === 'structural' ? structColor : (part.color ?? 0xffffff);
     const mesh = new THREE.Mesh(
       makeGeometry(part.geometry),
@@ -64,7 +64,7 @@ export function highlightPart(meshes, partId) {
 
 export function applyMaterial(meshes, subtype, materialId) {
   const structColor = MATERIALS[materialId].color;
-  for (const part of buildSubtypeParts(subtype)) {
+  for (const part of getSubtypeParts(subtype)) {
     if (part.materialRole === 'structural' && meshes[part.id]) {
       meshes[part.id].material.color.setHex(structColor);
     }
@@ -73,8 +73,8 @@ export function applyMaterial(meshes, subtype, materialId) {
 
 const WASHOUT = 8;
 export function applyBladeTwist(meshes, subtype, aoaDeg, bladeLen) {
-  for (const part of buildSubtypeParts(subtype)) {
-    if (part.geometry.type === 'blade' && meshes[part.id]) {
+  for (const part of getSubtypeParts(subtype)) {
+    if (part.geometry.type === 'blade' && !part.tailRotor && meshes[part.id]) {
       meshes[part.id].geometry.dispose();
       meshes[part.id].geometry = makeTwistedBlade(
         bladeLen ?? part.geometry.args[0], part.geometry.args[1],
@@ -84,4 +84,4 @@ export function applyBladeTwist(meshes, subtype, aoaDeg, bladeLen) {
   }
 }
 
-export { DRONES, buildSubtypeParts };
+export { DRONES, buildSubtypeParts, getSubtypeParts };

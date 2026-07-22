@@ -158,3 +158,60 @@ describe('bladeLinearSpeed', () => {
     expect(bladeLinearSpeed(2200, 0.6)).toBeGreaterThan(bladeLinearSpeed(2200, 0.42));
   });
 });
+
+import { mainRotorTorque, tailRotorThrust, yawRate, cyclicSplit, autorotation } from './aero.js';
+
+describe('mainRotorTorque', () => {
+  it('随升力与桨长增大', () => {
+    expect(mainRotorTorque(200, 1.6)).toBeGreaterThan(mainRotorTorque(100, 1.6));
+    expect(mainRotorTorque(200, 1.6)).toBeGreaterThan(mainRotorTorque(200, 1.2));
+  });
+});
+
+describe('tailRotorThrust', () => {
+  it('随尾桨距与转速增大，0 距为 0', () => {
+    expect(tailRotorThrust(0, 2200)).toBe(0);
+    expect(tailRotorThrust(8, 2200)).toBeGreaterThan(tailRotorThrust(4, 2200));
+    expect(tailRotorThrust(8, 3000)).toBeGreaterThan(tailRotorThrust(8, 2200));
+  });
+});
+
+describe('yawRate', () => {
+  it('尾桨推力×力臂=扭矩时为零（平衡）', () => {
+    expect(yawRate({ torque: 24, tailThrust: 16, tailArm: 1.5 })).toBeCloseTo(0, 5);
+  });
+  it('尾桨不足→正（自旋），过强→负', () => {
+    expect(yawRate({ torque: 24, tailThrust: 5, tailArm: 1.5 })).toBeGreaterThan(0);
+    expect(yawRate({ torque: 24, tailThrust: 30, tailArm: 1.5 })).toBeLessThan(0);
+  });
+});
+
+describe('cyclicSplit', () => {
+  it('0° 全部垂直；分量满足勾股', () => {
+    const z = cyclicSplit(100, 0);
+    expect(z.vertical).toBeCloseTo(100, 5);
+    expect(z.forward).toBeCloseTo(0, 5);
+    const s = cyclicSplit(100, 10);
+    expect(Math.hypot(s.vertical, s.forward)).toBeCloseTo(100, 5);
+    expect(s.forward).toBeGreaterThan(0);
+  });
+});
+
+describe('autorotation', () => {
+  it('有动力→powered', () => {
+    expect(autorotation({ engineOn: true, aoaDeg: 8 }).mode).toBe('powered');
+  });
+  it('无动力小总距→自转维持', () => {
+    const r = autorotation({ engineOn: false, aoaDeg: 4 });
+    expect(r.mode).toBe('autorotation');
+    expect(r.rpmFactor).toBeCloseTo(0.85, 5);
+    expect(r.descentRate).toBeGreaterThan(0);
+  });
+  it('无动力大总距→crash，rpmFactor 随 α 单调下降', () => {
+    const a = autorotation({ engineOn: false, aoaDeg: 10 });
+    const b = autorotation({ engineOn: false, aoaDeg: 20 });
+    expect(a.mode).toBe('crash');
+    expect(b.rpmFactor).toBeLessThan(a.rpmFactor);
+    expect(b.rpmFactor).toBeGreaterThanOrEqual(0.2);
+  });
+});

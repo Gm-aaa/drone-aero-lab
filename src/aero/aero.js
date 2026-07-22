@@ -113,3 +113,34 @@ export function maxLDAoa() {
 export function bladeLinearSpeed(rpm, bladeLen) {
   return (rpm / 60) * 2 * Math.PI * 0.75 * (bladeLen / 2);
 }
+
+// ===== 直升机（教学示意级） =====
+const TORQUE_K = 0.12;
+const TAIL_KT = 16.7; // 标定：默认尾桨距6°@2200RPM 恰好平衡默认主旋翼扭矩(~150N·m/臂1.5m)
+const YAW_KY = 0.05;
+
+export function mainRotorTorque(totalLift, rotorLen) {
+  return TORQUE_K * totalLift * rotorLen;
+}
+
+export function tailRotorThrust(tailPitchDeg, rpm) {
+  const n = rpm / 2200;
+  return TAIL_KT * tailPitchDeg * n * n;
+}
+
+export function yawRate({ torque, tailThrust, tailArm }) {
+  return (torque - tailThrust * tailArm) * YAW_KY;
+}
+
+export function cyclicSplit(totalLift, cyclicDeg) {
+  const r = cyclicDeg * Math.PI / 180;
+  return { vertical: totalLift * Math.cos(r), forward: totalLift * Math.sin(r) };
+}
+
+export function autorotation({ engineOn, aoaDeg }) {
+  if (engineOn) return { mode: 'powered', rpmFactor: 1, descentRate: 0 };
+  if (aoaDeg <= 6) return { mode: 'autorotation', rpmFactor: 0.85, descentRate: 4 };
+  // 总距过大：旋翼被气流拖慢，α 越大衰减越多（10°→0.7 线性降至 30°→0.2）
+  const f = Math.max(0.2, 0.7 - (aoaDeg - 10) * 0.025);
+  return { mode: 'crash', rpmFactor: f, descentRate: 10 + (aoaDeg - 6) * 0.3 };
+}

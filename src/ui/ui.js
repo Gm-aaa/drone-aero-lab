@@ -35,19 +35,28 @@ function paintRange(el, accent) {
   el.style.background = `linear-gradient(to right, ${accent} 0%, ${accent} ${pct}%, var(--border-strong) ${pct}%, var(--border-strong) 100%)`;
 }
 
-export function createUI(panel, { state, onSubtypeChange }) {
+export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () => {} }) {
   const s = state.get();
-  const subs = DRONES.multirotor.subtypes;
+  const catKey = s.category ?? 'multirotor';
+  const cat = DRONES[catKey];
+  const subs = cat.subtypes;
+  const isHeli = catKey === 'helicopter';
+  const curSub = subs[s.subtype];
 
   panel.innerHTML = `
     <div class="panel-header">
       <div class="panel-title">无人机空气动力学实验室</div>
-      <div class="panel-subtitle">多旋翼 · 示意值，非精确工程值</div>
+      <div class="panel-subtitle">${cat.name} · 示意值，非精确工程值</div>
     </div>
 
     ${card('机型', `
-      <div style="margin-bottom:10px">分类 <span class="chip">多旋翼</span></div>
       <label>
+        <span class="field-label">分类</span>
+        <select id="category">
+          ${Object.entries(DRONES).map(([k, v]) => `<option value="${k}" ${k === catKey ? 'selected' : ''}>${v.name}</option>`).join('')}
+        </select>
+      </label>
+      <label style="display:block;margin-top:12px">
         <span class="field-label">子类</span>
         <select id="subtype">
           ${Object.entries(subs).map(([k, v]) => `<option value="${k}" ${k === s.subtype ? 'selected' : ''}>${v.name}</option>`).join('')}
@@ -61,6 +70,12 @@ export function createUI(panel, { state, onSubtypeChange }) {
       ${slider('风速', 'wind', 0, 15, s.windSpeed, 0.5, ' m/s', 'var(--wind)')}
       ${slider('风向', 'wdir', 0, 360, s.windDirDeg, 5, '°', 'var(--wind)')}
       ${slider('垂直气流', 'updraft', -6, 6, s.updraft ?? 0, 0.5, ' m/s', 'var(--warn)')}
+      ${isHeli && curSub?.config === 'tailrotor' ? slider('尾桨距', 'tailpitch', 0, 12, s.tailPitch ?? 6, 0.5, '°', 'var(--wind)') : ''}
+      ${isHeli ? slider('周期变距', 'cyclic', 0, 15, s.cyclicDeg ?? 0, 1, '°', 'var(--warn)') : ''}
+      ${isHeli ? `
+      <label class="engine-row" style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12.5px;color:var(--text-secondary);cursor:pointer">
+        <input type="checkbox" id="engine" ${(s.engineOn ?? true) ? 'checked' : ''}> 发动机（关闭演示自转）
+      </label>` : ''}
       <label style="display:block;margin-top:12px">
         <span class="field-label">材料</span>
         <select id="material">
@@ -74,7 +89,11 @@ export function createUI(panel, { state, onSubtypeChange }) {
       ${legendRow('var(--wind)', '风')}
       ${legendRow('var(--downwash)', '下洗气流')}
       ${legendRow('var(--warn)', '升阻比 L/D 曲线 / 垂直气流')}
-      <div class="legend-note">坐标轴 Z↑ = 升力方向；升力箭头颜色由绿→橙→红表示裕度下降 / 失速。<br>风大→机身倾斜抗风，有效升力下降。</div>`)}
+      ${isHeli ? legendRow('#f97316', '主旋翼反扭矩（弧形箭头）') : ''}
+      ${isHeli && curSub?.config === 'tailrotor' ? legendRow('#22d3ee', '尾桨推力') : ''}
+      ${isHeli && curSub?.config === 'coaxial' ? legendRow('#38bdf8', '下旋翼反扭矩——两弧反向，相互抵消') : ''}
+      <div class="legend-note">坐标轴 Z↑ = 升力方向；升力箭头颜色由绿→橙→红表示裕度下降 / 失速。<br>风大→机身倾斜抗风，有效升力下降。</div>
+      ${isHeli ? `<div class="legend-note">发动机关闭→气流自下而上驱动旋翼（自转下滑）。</div>` : ''}`)}
 
     ${card('实时读数', `<div id="readout"></div>`)}
 
@@ -85,13 +104,18 @@ export function createUI(panel, { state, onSubtypeChange }) {
     ${card('关于', `
       <div style="font-size:12px;color:var(--text-secondary);line-height:1.7">
         交互式学习无人机<b>结构组成</b>与<b>空气动力学</b>的教学项目。
-        当前为多旋翼（四/六/八轴），直升机与垂起固定翼在路线图中。<br>
+        当前涵盖多旋翼（四/六/八轴）与直升机（单旋翼带尾桨/共轴双旋翼），垂起固定翼在路线图中。<br>
         所有数值为<b>教学示意</b>（简化解析模型，非 CFD / 工程值）。<br>
         <a href="https://github.com/Gm-aaa/drone-aero-lab" target="_blank" rel="noopener"
            style="color:var(--wind);text-decoration:none">GitHub 源码 ↗</a>
       </div>`)}
   `;
 
+  panel.querySelector('#category').onchange = (e) => {
+    const c = e.target.value;
+    state.set({ category: c, subtype: Object.keys(DRONES[c].subtypes)[0] });
+    onCategoryChange();
+  };
   panel.querySelector('#subtype').onchange = (e) => { state.set({ subtype: e.target.value }); onSubtypeChange(); };
 
   const bind = (id, key, accent) => {
@@ -111,6 +135,9 @@ export function createUI(panel, { state, onSubtypeChange }) {
   bind('wind', 'windSpeed', 'var(--wind)');
   bind('wdir', 'windDirDeg', 'var(--wind)');
   bind('updraft', 'updraft', 'var(--warn)');
+  if (isHeli && curSub?.config === 'tailrotor') bind('tailpitch', 'tailPitch', 'var(--wind)');
+  if (isHeli) bind('cyclic', 'cyclicDeg', 'var(--warn)');
+  if (isHeli) panel.querySelector('#engine').onchange = (e) => state.set({ engineOn: e.target.checked });
   panel.querySelector('#material').onchange = (e) => state.set({ materialId: e.target.value });
 }
 
@@ -120,7 +147,7 @@ const STATUS_META = {
   stall: { label: '升力不足 ▼', bg: 'rgba(239,68,68,.15)', fg: 'var(--weight)' },
 };
 
-export function renderReadout(el, { totalLift, net, weight, aoaDeg, aeroDrag, material }) {
+export function renderReadout(el, { totalLift, net, weight, aoaDeg, aeroDrag, material, heli }) {
   const meta = STATUS_META[net.status];
   const ratio = weight > 0 ? net.effectiveLift / weight : 0;
   const pct = Math.max(0, Math.min(100, (ratio / 1.5) * 100));
@@ -131,6 +158,16 @@ export function renderReadout(el, { totalLift, net, weight, aoaDeg, aeroDrag, ma
     <div class="readout-row"><span>有效升力（抗风后）</span><span class="readout-value">${net.effectiveLift.toFixed(0)} N</span></div>
     <div class="readout-row"><span>气动阻力（随α）｜ 升阻比 L/D</span><span class="readout-value">${aeroDrag.toFixed(0)} N ｜ ${liftDragRatio(aoaDeg).toFixed(1)}</span></div>
     <div class="readout-row"><span>风阻 ｜ 抗风倾角 θ</span><span class="readout-value">${net.drag.toFixed(0)} N ｜ ${net.tiltDeg.toFixed(0)}°</span></div>
+    ${heli ? `
+    <div class="readout-row"><span>主旋翼扭矩</span><span class="readout-value">${heli.torque.toFixed(0)} N·m（示意）</span></div>
+    ${heli.tailThrust != null ? `<div class="readout-row"><span>尾桨推力</span><span class="readout-value">${heli.tailThrust.toFixed(1)} N</span></div>` : ''}
+    <div class="readout-row"><span>偏航</span><span class="readout-value">${
+      heli.yawState === 'balanced' ? '平衡 ●' : heli.yawState === 'spinLeft' ? '左自旋 ↺' : heli.yawState === 'spinRight' ? '右自旋 ↻' : '共轴自平衡 ●'
+    }</span></div>
+    <div class="readout-row"><span>前飞分量</span><span class="readout-value">${heli.forward.toFixed(0)} N</span></div>
+    <div class="readout-row"><span>飞行模式</span><span class="readout-value"${heli.mode === 'crash' ? ' style="color:var(--weight)"' : ''}>${
+      heli.mode === 'powered' ? '有动力' : heli.mode === 'autorotation' ? `自转下滑（约 ${heli.descentRate.toFixed(0)} m/s）` : '坠落警示！总距过大'
+    }</span></div>` : ''}
     <div class="status-row">
       <span style="font-size:12.5px;color:var(--text-secondary)">状态</span>
       <span class="status-pill" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>
