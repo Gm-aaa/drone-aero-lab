@@ -23,7 +23,7 @@ function rebuild() {
 function recompute() {
   const s = state.get();
   applyMaterial(current.meshes, subtype, s.materialId);
-  const lift = computeLift({ rotorCount: subtype.rotorCount, bladeSpeed: 55, refArea: 0.02, aoaDeg: s.aoaDeg, airDensity: 1.225 });
+  const lift = computeLift({ rotorCount: subtype.rotorCount, bladeSpeed: 36, refArea: 0.02, aoaDeg: s.aoaDeg, airDensity: 1.225 });
   const weight = computeWeight({ bodyVolume: 6, materialId: s.materialId });
   const status = liftStatus(lift, weight);
   viz.update({ lift, weight, status, wind: windVector(s.windSpeed, s.windDirDeg) });
