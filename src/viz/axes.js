@@ -20,10 +20,11 @@ export function createAxes(group) {
   const axis = (dir, color) => g.add(new THREE.ArrowHelper(dir, new THREE.Vector3(0, 0, 0), L, color, 0.12, 0.07));
   axis(new THREE.Vector3(1, 0, 0), 0xef4444);
   axis(new THREE.Vector3(0, 1, 0), 0x3b82f6);
-  axis(new THREE.Vector3(0, 0, 1), 0x22c55e);
+  // 局部 -Z 经 content 旋转后指向世界 +Y，保证标注三轴为右手系
+  axis(new THREE.Vector3(0, 0, -1), 0x22c55e);
   const xl = labelSprite('X', '#ef4444'); xl.position.set(L + 0.18, 0, 0);
   const zl = labelSprite('Z↑', '#3b82f6'); zl.position.set(0, L + 0.18, 0);
-  const yl = labelSprite('Y', '#22c55e'); yl.position.set(0, 0, L + 0.18);
+  const yl = labelSprite('Y', '#22c55e'); yl.position.set(0, 0, -(L + 0.18));
   g.add(xl, zl, yl);
   group.add(g);
   return g;
@@ -38,7 +39,7 @@ export function createGizmo(renderer, mainCamera) {
   const axis = (dir, color) => axesRoot.add(new THREE.ArrowHelper(dir, new THREE.Vector3(0, 0, 0), 1, color, 0.28, 0.16));
   axis(new THREE.Vector3(1, 0, 0), 0xef4444);
   axis(new THREE.Vector3(0, 1, 0), 0x3b82f6);
-  axis(new THREE.Vector3(0, 0, 1), 0x22c55e);
+  axis(new THREE.Vector3(0, 0, -1), 0x22c55e); // 与 createAxes 一致的右手系 Y
   const SIZE = 110, PAD = 12;
   const sz = new THREE.Vector2();
   function render() {
