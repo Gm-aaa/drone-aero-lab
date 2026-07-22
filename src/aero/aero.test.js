@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   MATERIALS, liftCoefficient, computeLift, computeWeight, liftStatus, windVector,
+  perRotorLift, liftColor,
 } from './aero.js';
 
 describe('liftCoefficient', () => {
@@ -46,5 +47,33 @@ describe('windVector', () => {
     const v = windVector(10, 90);
     expect(v.x).toBeCloseTo(0, 5);
     expect(v.z).toBeCloseTo(10, 5);
+  });
+});
+
+describe('perRotorLift', () => {
+  it('总升力 = 旋翼数 × 单旋翼升力', () => {
+    const p = { bladeSpeed: 36, refArea: 0.02, aoaDeg: 8, airDensity: 1.225 };
+    const single = perRotorLift(p);
+    expect(computeLift({ ...p, rotorCount: 6 })).toBeCloseTo(single * 6, 5);
+  });
+});
+
+describe('liftColor', () => {
+  it('升力远小于重力偏红（g 通道低）', () => {
+    const c = liftColor(50, 100);
+    expect(c.r).toBeGreaterThan(c.g);
+  });
+  it('升力远大于重力偏绿（g 通道高）', () => {
+    const c = liftColor(130, 100);
+    expect(c.g).toBeGreaterThan(c.r);
+  });
+  it('g 通道随升重比单调不减（连续过渡）', () => {
+    const g = (ratio) => liftColor(ratio * 100, 100).g;
+    expect(g(0.9)).toBeGreaterThanOrEqual(g(0.7));
+    expect(g(1.1)).toBeGreaterThanOrEqual(g(0.9));
+  });
+  it('相近升力颜色相近（无跳变）', () => {
+    const a = liftColor(99, 100), b = liftColor(101, 100);
+    expect(Math.abs(a.g - b.g)).toBeLessThan(0.15);
   });
 });

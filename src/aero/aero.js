@@ -18,9 +18,13 @@ export function liftCoefficient(aoaDeg) {
   return Math.max(0, CL_MAX * (1 - over / 20));
 }
 
-export function computeLift({ rotorCount, bladeSpeed, refArea, aoaDeg, airDensity }) {
+export function perRotorLift({ bladeSpeed, refArea, aoaDeg, airDensity }) {
   const cl = liftCoefficient(aoaDeg);
-  return rotorCount * 0.5 * airDensity * bladeSpeed * bladeSpeed * refArea * cl;
+  return 0.5 * airDensity * bladeSpeed * bladeSpeed * refArea * cl;
+}
+
+export function computeLift({ rotorCount, bladeSpeed, refArea, aoaDeg, airDensity }) {
+  return rotorCount * perRotorLift({ bladeSpeed, refArea, aoaDeg, airDensity });
 }
 
 export function computeWeight({ bodyVolume, materialId }) {
@@ -38,4 +42,14 @@ export function liftStatus(lift, weight) {
 export function windVector(windSpeed, windDirDeg) {
   const rad = windDirDeg * Math.PI / 180;
   return { x: windSpeed * Math.cos(rad), z: windSpeed * Math.sin(rad) };
+}
+
+export function liftColor(lift, weight) {
+  const ratio = weight > 0 ? lift / weight : 0;
+  const t = Math.max(0, Math.min(1, (ratio - 0.8) / 0.4));
+  const red = { r: 0.94, g: 0.27, b: 0.27 };
+  const orange = { r: 0.98, g: 0.62, b: 0.15 };
+  const green = { r: 0.13, g: 0.77, b: 0.37 };
+  const lerp = (a, b, u) => ({ r: a.r + (b.r - a.r) * u, g: a.g + (b.g - a.g) * u, b: a.b + (b.b - a.b) * u });
+  return t < 0.5 ? lerp(red, orange, t / 0.5) : lerp(orange, green, (t - 0.5) / 0.5);
 }
