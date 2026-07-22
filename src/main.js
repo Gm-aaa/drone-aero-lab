@@ -5,7 +5,7 @@ import { createViz } from './viz/viz.js';
 import { createAxes, createGizmo } from './viz/axes.js';
 import { createAirfoil } from './viz/airfoil.js';
 import { createAeroChart } from './viz/aerochart.js';
-import { computeWeight, liftStatus, windVector, MATERIALS, perRotorLift, netLift, windVector3D } from './aero/aero.js';
+import { computeWeight, computeDrag, MATERIALS, perRotorLift, netLift, windVector3D } from './aero/aero.js';
 import { createState } from './state.js';
 import { createUI, renderReadout, renderPartInfo, renderPartList } from './ui/ui.js';
 
@@ -56,7 +56,8 @@ function recompute() {
   const tiltAxis = new THREE.Vector3(Math.sin(wr), 0, -Math.cos(wr));
   current.group.setRotationFromAxisAngle(tiltAxis, net.tiltDeg * Math.PI / 180);
   viz.update({ perLift, totalLift, effectiveLift: net.effectiveLift, weight, wind });
-  renderReadout(panel.querySelector('#readout'), { totalLift, net, weight, aoaDeg: s.aoaDeg, material: MATERIALS[s.materialId] });
+  const aeroDrag = computeDrag({ ...aeroP, rotorCount: subtype.rotorCount });
+  renderReadout(panel.querySelector('#readout'), { totalLift, net, weight, aoaDeg: s.aoaDeg, aeroDrag, material: MATERIALS[s.materialId] });
   airfoil.draw(s.aoaDeg);
   aerochart.draw(s.aoaDeg);
 }

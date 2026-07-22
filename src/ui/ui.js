@@ -107,7 +107,7 @@ const STATUS_META = {
   stall: { label: '升力不足 ▼', bg: 'rgba(239,68,68,.15)', fg: 'var(--weight)' },
 };
 
-export function renderReadout(el, { totalLift, net, weight, aoaDeg, material }) {
+export function renderReadout(el, { totalLift, net, weight, aoaDeg, aeroDrag, material }) {
   const meta = STATUS_META[net.status];
   const ratio = weight > 0 ? net.effectiveLift / weight : 0;
   const pct = Math.max(0, Math.min(100, (ratio / 1.5) * 100));
@@ -116,8 +116,8 @@ export function renderReadout(el, { totalLift, net, weight, aoaDeg, material }) 
   el.innerHTML = `
     <div class="readout-row"><span>总升力</span><span class="readout-value">${totalLift.toFixed(0)} N</span></div>
     <div class="readout-row"><span>有效升力（抗风后）</span><span class="readout-value">${net.effectiveLift.toFixed(0)} N</span></div>
-    <div class="readout-row"><span>阻力 ｜ 升阻比 L/D</span><span class="readout-value">${net.drag.toFixed(0)} N ｜ ${liftDragRatio(aoaDeg).toFixed(1)}</span></div>
-    <div class="readout-row"><span>抗风倾角 θ</span><span class="readout-value">${net.tiltDeg.toFixed(0)}°</span></div>
+    <div class="readout-row"><span>气动阻力（随α）｜ 升阻比 L/D</span><span class="readout-value">${aeroDrag.toFixed(0)} N ｜ ${liftDragRatio(aoaDeg).toFixed(1)}</span></div>
+    <div class="readout-row"><span>风阻 ｜ 抗风倾角 θ</span><span class="readout-value">${net.drag.toFixed(0)} N ｜ ${net.tiltDeg.toFixed(0)}°</span></div>
     <div class="status-row">
       <span style="font-size:12.5px;color:var(--text-secondary)">状态</span>
       <span class="status-pill" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>
