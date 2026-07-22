@@ -4,7 +4,7 @@ import { buildDrone, DRONES, applyMaterial, highlightPart, applyBladePitch, buil
 import { createViz } from './viz/viz.js';
 import { createAxes, createGizmo } from './viz/axes.js';
 import { createAirfoil } from './viz/airfoil.js';
-import { computeLift, computeWeight, liftStatus, windVector, MATERIALS, perRotorLift } from './aero/aero.js';
+import { computeWeight, liftStatus, windVector, MATERIALS, perRotorLift } from './aero/aero.js';
 import { createState } from './state.js';
 import { createUI, renderReadout, renderPartInfo, renderPartList } from './ui/ui.js';
 
