@@ -3,6 +3,7 @@ import { createScene } from './scene/scene.js';
 import { buildDrone, DRONES, applyMaterial, highlightPart, applyBladePitch } from './builder/builder.js';
 import { createViz } from './viz/viz.js';
 import { createAxes, createGizmo } from './viz/axes.js';
+import { createAirfoil } from './viz/airfoil.js';
 import { computeLift, computeWeight, liftStatus, windVector, MATERIALS } from './aero/aero.js';
 import { createState } from './state.js';
 import { createUI, renderReadout, renderPartInfo } from './ui/ui.js';
@@ -12,6 +13,7 @@ const viz = createViz(ctx.scene);
 createAxes(ctx.scene);
 const gizmo = createGizmo(ctx.renderer, ctx.camera);
 const panel = document.getElementById('panel');
+const airfoil = createAirfoil(document.getElementById('airfoil'));
 
 const state = createState({ subtype: 'octa', aoaDeg: 8, windSpeed: 4, windDirDeg: 0, materialId: 'carbon' });
 
@@ -39,6 +41,7 @@ function recompute() {
   const status = liftStatus(lift, weight);
   viz.update({ lift, weight, status, wind: windVector(s.windSpeed, s.windDirDeg) });
   renderReadout(panel.querySelector('#readout'), { lift, weight, status, material: MATERIALS[s.materialId] });
+  airfoil.draw(s.aoaDeg);
 }
 
 rebuild();
