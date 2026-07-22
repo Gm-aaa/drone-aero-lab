@@ -62,6 +62,7 @@ export function buildSubtypeParts(subtype) {
       geometry: { type: 'box', args: [0.42, 0.006, 0.03] },
       position: [ax, 0.09, az], materialRole: 'fixed', color: 0xcbd5e1,
       spin: i % 2 === 0 ? 'cw' : 'ccw',
+      armAngleDeg: arm.angleDeg,
     });
   });
   return parts;

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createScene } from './scene/scene.js';
-import { buildDrone, DRONES, applyMaterial, highlightPart } from './builder/builder.js';
+import { buildDrone, DRONES, applyMaterial, highlightPart, applyBladePitch } from './builder/builder.js';
 import { createViz } from './viz/viz.js';
 import { createAxes, createGizmo } from './viz/axes.js';
 import { computeLift, computeWeight, liftStatus, windVector, MATERIALS } from './aero/aero.js';
@@ -33,6 +33,7 @@ function rebuild() {
 function recompute() {
   const s = state.get();
   applyMaterial(current.meshes, subtype, s.materialId);
+  applyBladePitch(current.meshes, subtype, s.aoaDeg);
   const lift = computeLift({ rotorCount: subtype.rotorCount, bladeSpeed: 36, refArea: 0.02, aoaDeg: s.aoaDeg, airDensity: 1.225 });
   const weight = computeWeight({ bodyVolume: 6, materialId: s.materialId });
   const status = liftStatus(lift, weight);

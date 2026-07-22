@@ -42,4 +42,16 @@ export function applyMaterial(meshes, subtype, materialId) {
     }
   }
 }
+
+export function applyBladePitch(meshes, subtype, aoaDeg) {
+  const a = aoaDeg * Math.PI / 180;
+  for (const part of buildSubtypeParts(subtype)) {
+    if (part.id.startsWith('prop') && meshes[part.id]) {
+      const rad = part.armAngleDeg * Math.PI / 180;
+      const axis = new THREE.Vector3(Math.cos(rad), 0, Math.sin(rad)).normalize();
+      meshes[part.id].setRotationFromAxisAngle(axis, a);
+    }
+  }
+}
+
 export { DRONES };
