@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import { createScene } from './scene/scene.js';
-import { buildDrone, DRONES, applyMaterial, highlightPart, applyBladePitch } from './builder/builder.js';
+import { buildDrone, DRONES, applyMaterial, highlightPart, applyBladePitch, buildSubtypeParts } from './builder/builder.js';
 import { createViz } from './viz/viz.js';
 import { createAxes, createGizmo } from './viz/axes.js';
 import { createAirfoil } from './viz/airfoil.js';
-import { computeLift, computeWeight, liftStatus, windVector, MATERIALS } from './aero/aero.js';
+import { computeLift, computeWeight, liftStatus, windVector, MATERIALS, perRotorLift } from './aero/aero.js';
 import { createState } from './state.js';
 import { createUI, renderReadout, renderPartInfo } from './ui/ui.js';
 
@@ -30,17 +30,24 @@ function rebuild() {
   subtype = DRONES.multirotor.subtypes[state.get().subtype];
   current = buildDrone(subtype, state.get().materialId);
   ctx.scene.add(current.group);
+  const rotors = buildSubtypeParts(subtype)
+    .filter((p) => p.id.startsWith('motor'))
+    .map((p) => ({ x: p.position[0], z: p.position[2] }));
+  viz.setRotors(rotors);
 }
 
 function recompute() {
   const s = state.get();
   applyMaterial(current.meshes, subtype, s.materialId);
   applyBladePitch(current.meshes, subtype, s.aoaDeg);
-  const lift = computeLift({ rotorCount: subtype.rotorCount, bladeSpeed: 36, refArea: 0.02, aoaDeg: s.aoaDeg, airDensity: 1.225 });
+  const aeroP = { bladeSpeed: 36, refArea: 0.02, aoaDeg: s.aoaDeg, airDensity: 1.225 };
+  const single = perRotorLift(aeroP);
+  const perLift = Array.from({ length: subtype.rotorCount }, () => single);
+  const totalLift = single * subtype.rotorCount;
   const weight = computeWeight({ bodyVolume: 6, materialId: s.materialId });
-  const status = liftStatus(lift, weight);
-  viz.update({ lift, weight, status, wind: windVector(s.windSpeed, s.windDirDeg) });
-  renderReadout(panel.querySelector('#readout'), { lift, weight, status, material: MATERIALS[s.materialId] });
+  const status = liftStatus(totalLift, weight);
+  viz.update({ perLift, totalLift, weight, wind: windVector(s.windSpeed, s.windDirDeg) });
+  renderReadout(panel.querySelector('#readout'), { lift: totalLift, weight, status, material: MATERIALS[s.materialId] });
   airfoil.draw(s.aoaDeg);
 }
 

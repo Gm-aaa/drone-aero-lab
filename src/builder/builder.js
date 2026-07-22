@@ -54,4 +54,4 @@ export function applyBladePitch(meshes, subtype, aoaDeg) {
   }
 }
 
-export { DRONES };
+export { DRONES, buildSubtypeParts };
