@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createScene } from './scene/scene.js';
-import { buildDrone, DRONES, applyMaterial, highlightPart, applyBladePitch, buildSubtypeParts } from './builder/builder.js';
+import { buildDrone, DRONES, applyMaterial, highlightPart, applyBladeTwist, buildSubtypeParts } from './builder/builder.js';
 import { createViz } from './viz/viz.js';
 import { createAxes, createGizmo } from './viz/axes.js';
 import { createAirfoil } from './viz/airfoil.js';
@@ -39,7 +39,7 @@ function rebuild() {
 function recompute() {
   const s = state.get();
   applyMaterial(current.meshes, subtype, s.materialId);
-  applyBladePitch(current.meshes, subtype, s.aoaDeg);
+  applyBladeTwist(current.meshes, subtype, s.aoaDeg);
   const aeroP = { bladeSpeed: 36, refArea: 0.02, aoaDeg: s.aoaDeg, airDensity: 1.225 };
   const single = perRotorLift(aeroP);
   const perLift = Array.from({ length: subtype.rotorCount }, () => single);

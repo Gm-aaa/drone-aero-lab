@@ -23,19 +23,20 @@ export function createAirfoil(canvas) {
     arrow(g, 24, cy, cx - 42, cy, '#7dd3fc');
     g.fillStyle = '#7dd3fc'; g.font = '12px sans-serif';
     g.fillText('相对来流', 20, cy - 8);
-    // 翼型剖面（随迎角倾转，屏幕 y 向下，故取负角）
-    g.save();
-    g.translate(cx, cy);
-    g.rotate(-aoaDeg * Math.PI / 180);
-    g.fillStyle = '#cbd5e1';
-    g.beginPath();
-    g.moveTo(-40, 0);
-    g.quadraticCurveTo(-8, -11, 42, -2);
-    g.quadraticCurveTo(-8, 7, -40, 0);
-    g.fill();
-    g.strokeStyle = 'rgba(148,163,184,.6)'; g.lineWidth = 1;
-    g.beginPath(); g.moveTo(-40, 0); g.lineTo(42, -1); g.stroke(); // 弦线
-    g.restore();
+    // 根/尖两站剖面：根(α+8, 深色实心) 尖(α-8, 浅色描边)
+    const drawSection = (deg, fill, stroke) => {
+      g.save(); g.translate(cx, cy); g.rotate(-deg * Math.PI / 180);
+      g.beginPath();
+      g.moveTo(-40, 0); g.quadraticCurveTo(-8, -11, 42, -2); g.quadraticCurveTo(-8, 7, -40, 0);
+      if (fill) { g.fillStyle = fill; g.fill(); }
+      if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1.5; g.stroke(); }
+      g.restore();
+    };
+    drawSection(aoaDeg + 8, '#cbd5e1', null);   // 根：迎角大
+    drawSection(aoaDeg - 8, null, '#64748b');   // 尖：迎角小
+    g.fillStyle = '#94a3b8'; g.font = '11px sans-serif';
+    g.fillText(`根 α+8°`, W - 70, H - 22);
+    g.fillText(`尖 α−8°`, W - 70, H - 8);
     // 升力箭头（垂直向上，长度随 CL 连续，失速变橙）
     const cl = liftCoefficient(aoaDeg);
     const len = 18 + 78 * Math.max(0, Math.min(1, cl / clMax));

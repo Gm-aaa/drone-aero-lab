@@ -2,9 +2,31 @@ import * as THREE from 'three';
 import { buildSubtypeParts, DRONES } from '../data/drones.js';
 import { MATERIALS } from '../aero/aero.js';
 
+export function makeTwistedBlade(length, chord, rootPitchDeg, tipPitchDeg, segments = 9) {
+  const positions = [];
+  const half = length / 2, c = chord / 2;
+  const st = [];
+  for (let i = 0; i <= segments; i++) {
+    const x = -half + (length * i) / segments;
+    const rFrac = Math.abs(x) / half;                 // 0=根(中心) 1=尖(两端)
+    const pitch = (rootPitchDeg + (tipPitchDeg - rootPitchDeg) * rFrac) * Math.PI / 180;
+    const s = Math.sin(pitch), cs = Math.cos(pitch);
+    st.push([[x, -c * s, c * cs], [x, c * s, -c * cs]]); // 前缘, 后缘(绕X按桨距旋转)
+  }
+  for (let i = 0; i < segments; i++) {
+    const [le0, te0] = st[i], [le1, te1] = st[i + 1];
+    positions.push(...le0, ...te0, ...te1, ...le0, ...te1, ...le1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function makeGeometry(g) {
   if (g.type === 'box') return new THREE.BoxGeometry(...g.args);
   if (g.type === 'cylinder') return new THREE.CylinderGeometry(...g.args);
+  if (g.type === 'blade') return makeTwistedBlade(g.args[0], g.args[1], 16, 0);
   throw new Error(`未知几何体: ${g.type}`);
 }
 
@@ -16,7 +38,10 @@ export function buildDrone(subtype, materialId) {
     const color = part.materialRole === 'structural' ? structColor : (part.color ?? 0xffffff);
     const mesh = new THREE.Mesh(
       makeGeometry(part.geometry),
-      new THREE.MeshStandardMaterial({ color, metalness: 0.3, roughness: 0.6 }),
+      new THREE.MeshStandardMaterial({
+        color, metalness: 0.3, roughness: 0.6,
+        side: part.geometry.type === 'blade' ? THREE.DoubleSide : THREE.FrontSide,
+      }),
     );
     mesh.position.set(...part.position);
     if (part.rotation) mesh.rotation.set(...part.rotation);
@@ -43,13 +68,12 @@ export function applyMaterial(meshes, subtype, materialId) {
   }
 }
 
-export function applyBladePitch(meshes, subtype, aoaDeg) {
-  const a = aoaDeg * Math.PI / 180;
+const WASHOUT = 8;
+export function applyBladeTwist(meshes, subtype, aoaDeg) {
   for (const part of buildSubtypeParts(subtype)) {
-    if (part.id.startsWith('prop') && meshes[part.id]) {
-      const rad = part.armAngleDeg * Math.PI / 180;
-      const axis = new THREE.Vector3(Math.cos(rad), 0, Math.sin(rad)).normalize();
-      meshes[part.id].setRotationFromAxisAngle(axis, a);
+    if (part.geometry.type === 'blade' && meshes[part.id]) {
+      meshes[part.id].geometry.dispose();
+      meshes[part.id].geometry = makeTwistedBlade(part.geometry.args[0], part.geometry.args[1], aoaDeg + WASHOUT, aoaDeg - WASHOUT);
     }
   }
 }

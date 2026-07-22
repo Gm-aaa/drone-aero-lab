@@ -59,7 +59,7 @@ export function buildSubtypeParts(subtype) {
     parts.push({
       id: `prop${i}`, name: i % 2 === 0 ? '螺旋桨（正桨 CW）' : '螺旋桨（反桨 CCW）',
       desc: '相邻电机正反桨交替，抵消反扭矩以保持偏航稳定。',
-      geometry: { type: 'box', args: [0.42, 0.006, 0.03] },
+      geometry: { type: 'blade', args: [0.42, 0.03] },
       position: [ax, 0.09, az], materialRole: 'fixed', color: 0xcbd5e1,
       spin: i % 2 === 0 ? 'cw' : 'ccw',
       armAngleDeg: arm.angleDeg,
