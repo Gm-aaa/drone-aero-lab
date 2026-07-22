@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   MATERIALS, liftCoefficient, computeLift, computeWeight, liftStatus, windVector,
-  perRotorLift, liftColor,
+  perRotorLift, liftColor, windVector3D,
 } from './aero.js';
 
 describe('liftCoefficient', () => {
@@ -47,6 +47,15 @@ describe('windVector', () => {
     const v = windVector(10, 90);
     expect(v.x).toBeCloseTo(0, 5);
     expect(v.z).toBeCloseTo(10, 5);
+  });
+});
+
+describe('windVector3D', () => {
+  it('水平分量在 XZ、垂直分量为 updraft(Y)', () => {
+    const v = windVector3D(10, 0, 3);
+    expect(v.x).toBeCloseTo(10, 5);
+    expect(v.z).toBeCloseTo(0, 5);
+    expect(v.y).toBeCloseTo(3, 5);
   });
 });
 

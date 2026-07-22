@@ -4,9 +4,11 @@ import { buildDrone, DRONES, applyMaterial, highlightPart, applyBladeTwist, buil
 import { createViz } from './viz/viz.js';
 import { createAxes, createGizmo } from './viz/axes.js';
 import { createAirfoil } from './viz/airfoil.js';
-import { computeWeight, liftStatus, windVector, MATERIALS, perRotorLift } from './aero/aero.js';
+import { computeWeight, liftStatus, windVector, MATERIALS, perRotorLift, netLift, windVector3D } from './aero/aero.js';
 import { createState } from './state.js';
 import { createUI, renderReadout, renderPartInfo, renderPartList } from './ui/ui.js';
+
+const BODY_VOLUME = 6.7;
 
 const ctx = createScene(document.getElementById('app'));
 const viz = createViz(ctx.content);
@@ -15,7 +17,7 @@ const gizmo = createGizmo(ctx.renderer, ctx.camera);
 const panel = document.getElementById('panel');
 const airfoil = createAirfoil(document.getElementById('airfoil'));
 
-const state = createState({ subtype: 'octa', aoaDeg: 8, windSpeed: 4, windDirDeg: 0, materialId: 'carbon' });
+const state = createState({ subtype: 'octa', aoaDeg: 8, windSpeed: 4, windDirDeg: 0, materialId: 'carbon', updraft: 0 });
 
 let subtype, current;
 function rebuild() {
@@ -44,10 +46,15 @@ function recompute() {
   const single = perRotorLift(aeroP);
   const perLift = Array.from({ length: subtype.rotorCount }, () => single);
   const totalLift = single * subtype.rotorCount;
-  const weight = computeWeight({ bodyVolume: 6, materialId: s.materialId });
-  const status = liftStatus(totalLift, weight);
-  viz.update({ perLift, totalLift, weight, wind: windVector(s.windSpeed, s.windDirDeg) });
-  renderReadout(panel.querySelector('#readout'), { lift: totalLift, weight, status, material: MATERIALS[s.materialId] });
+  const weight = computeWeight({ bodyVolume: BODY_VOLUME, materialId: s.materialId });
+  const net = netLift({ totalLift, weight, windSpeed: s.windSpeed, updraft: s.updraft ?? 0, airDensity: 1.225 });
+  const wind = windVector3D(s.windSpeed, s.windDirDeg, s.updraft ?? 0);
+  // 机身抗风倾斜：绕与水平风垂直的水平轴倾转 tilt
+  const wr = s.windDirDeg * Math.PI / 180;
+  const tiltAxis = new THREE.Vector3(Math.sin(wr), 0, -Math.cos(wr));
+  current.group.setRotationFromAxisAngle(tiltAxis, net.tiltDeg * Math.PI / 180);
+  viz.update({ perLift, totalLift, effectiveLift: net.effectiveLift, weight, wind });
+  renderReadout(panel.querySelector('#readout'), { lift: net.effectiveLift, weight, status: net.status, material: MATERIALS[s.materialId] });
   airfoil.draw(s.aoaDeg);
 }
 

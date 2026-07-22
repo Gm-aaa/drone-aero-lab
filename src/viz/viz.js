@@ -22,7 +22,7 @@ export function createViz(scene) {
   let rotors = [];
   let rotorArrows = [];
   let flow = null;          // { points, geo, seed, rotorOf }
-  let windVec = { x: 0, z: 0 };
+  let windVec = { x: 0, y: 0, z: 0 };
   let downStrength = 0.5;   // 0..1，随总升力
 
   function clearRotors() {
@@ -76,7 +76,7 @@ export function createViz(scene) {
     } else {
       // 桨盘下方：向下成柱 + 轻微外扩 + 风平流
       const t = (phase - 0.35) / 0.65;
-      y = ROTOR_Y - DOWN_H * t;
+      y = ROTOR_Y - DOWN_H * t + windVec.y * 0.02 * t;
       x = rotor.x + jitter * (1 + t * 1.5) + windVec.x * 0.05 * t;
       z = rotor.z + jitter * (1 + t * 1.5) + windVec.z * 0.05 * t;
     }
@@ -93,12 +93,12 @@ export function createViz(scene) {
       rotorArrows[i].setColor(toColor(liftColor(lift, wShare)));
     }
     totalLift.setLength(Math.max(0.1, Math.min(2.4, s.totalLift / 120)), 0.18, 0.11);
-    totalLift.setColor(toColor(liftColor(s.totalLift, s.weight)));
+    totalLift.setColor(toColor(liftColor(s.effectiveLift, s.weight)));
     gravity.setLength(Math.max(0.1, Math.min(2.4, s.weight / 120)), 0.15, 0.09);
-    const wlen = Math.hypot(s.wind.x, s.wind.z);
+    const wlen = Math.hypot(s.wind.x, s.wind.y, s.wind.z);
     wind.visible = wlen > 0.01;
     if (wlen > 0.01) {
-      wind.setDirection(new THREE.Vector3(s.wind.x, 0, s.wind.z).normalize());
+      wind.setDirection(new THREE.Vector3(s.wind.x, s.wind.y, s.wind.z).normalize());
       wind.setLength(Math.min(2, 0.3 + wlen / 15), 0.15, 0.09);
     }
     windVec = s.wind;

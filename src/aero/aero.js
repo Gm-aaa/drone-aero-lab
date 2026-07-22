@@ -44,6 +44,11 @@ export function windVector(windSpeed, windDirDeg) {
   return { x: windSpeed * Math.cos(rad), z: windSpeed * Math.sin(rad) };
 }
 
+export function windVector3D(windSpeed, windDirDeg, updraft) {
+  const rad = windDirDeg * Math.PI / 180;
+  return { x: windSpeed * Math.cos(rad), y: updraft, z: windSpeed * Math.sin(rad) };
+}
+
 export function liftColor(lift, weight) {
   const ratio = weight > 0 ? lift / weight : 0;
   const t = Math.max(0, Math.min(1, (ratio - 0.8) / 0.4));
