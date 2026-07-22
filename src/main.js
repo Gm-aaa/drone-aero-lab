@@ -2,12 +2,15 @@ import * as THREE from 'three';
 import { createScene } from './scene/scene.js';
 import { buildDrone, DRONES, applyMaterial, highlightPart } from './builder/builder.js';
 import { createViz } from './viz/viz.js';
+import { createAxes, createGizmo } from './viz/axes.js';
 import { computeLift, computeWeight, liftStatus, windVector, MATERIALS } from './aero/aero.js';
 import { createState } from './state.js';
 import { createUI, renderReadout, renderPartInfo } from './ui/ui.js';
 
 const ctx = createScene(document.getElementById('app'));
 const viz = createViz(ctx.scene);
+createAxes(ctx.scene);
+const gizmo = createGizmo(ctx.renderer, ctx.camera);
 const panel = document.getElementById('panel');
 
 const state = createState({ subtype: 'octa', aoaDeg: 8, windSpeed: 4, windDirDeg: 0, materialId: 'carbon' });
@@ -60,4 +63,7 @@ ctx.renderer.domElement.addEventListener('click', (e) => {
 });
 
 let last = performance.now();
-ctx.start(() => { const now = performance.now(); viz.tick((now - last) / 1000); last = now; });
+ctx.start(
+  () => { const now = performance.now(); viz.tick((now - last) / 1000); last = now; },
+  () => gizmo.render(),
+);

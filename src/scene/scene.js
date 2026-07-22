@@ -31,12 +31,13 @@ export function createScene(container) {
   }
   window.addEventListener('resize', onResize);
 
-  function start(renderCb) {
+  function start(renderCb, afterRenderCb) {
     function loop() {
       requestAnimationFrame(loop);
       controls.update();
       if (renderCb) renderCb();
       renderer.render(scene, camera);
+      if (afterRenderCb) afterRenderCb();
     }
     loop();
   }
