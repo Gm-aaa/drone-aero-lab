@@ -14,7 +14,14 @@ const state = createState({ subtype: 'octa', aoaDeg: 8, windSpeed: 4, windDirDeg
 
 let subtype, current;
 function rebuild() {
-  if (current) ctx.scene.remove(current.group);
+  if (current) {
+    ctx.scene.remove(current.group);
+    // 释放旧模型的 GPU 资源，避免切换子类时几何体/材质泄漏
+    for (const mesh of Object.values(current.meshes)) {
+      mesh.geometry.dispose();
+      mesh.material.dispose();
+    }
+  }
   subtype = DRONES.multirotor.subtypes[state.get().subtype];
   current = buildDrone(subtype, state.get().materialId);
   ctx.scene.add(current.group);
