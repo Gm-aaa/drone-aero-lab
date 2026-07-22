@@ -6,7 +6,7 @@ import { createAxes, createGizmo } from './viz/axes.js';
 import { createAirfoil } from './viz/airfoil.js';
 import { computeLift, computeWeight, liftStatus, windVector, MATERIALS, perRotorLift } from './aero/aero.js';
 import { createState } from './state.js';
-import { createUI, renderReadout, renderPartInfo } from './ui/ui.js';
+import { createUI, renderReadout, renderPartInfo, renderPartList } from './ui/ui.js';
 
 const ctx = createScene(document.getElementById('app'));
 const viz = createViz(ctx.scene);
@@ -52,10 +52,27 @@ function recompute() {
 }
 
 rebuild();
-createUI(panel, { state, onSubtypeChange: () => { rebuild(); recompute(); } });
+createUI(panel, {
+  state,
+  onSubtypeChange: () => {
+    rebuild();
+    recompute();
+    renderPartList(panel.querySelector('#partlist'), buildSubtypeParts(subtype), selectedPartId, selectPart);
+  },
+});
 renderPartInfo(panel.querySelector('#partinfo'), null);
 state.subscribe(recompute);
 recompute();
+
+let selectedPartId = null;
+function selectPart(partId) {
+  selectedPartId = partId;
+  const part = current.meshes[partId]?.userData.part;
+  highlightPart(current.meshes, partId);
+  renderPartInfo(panel.querySelector('#partinfo'), part);
+  renderPartList(panel.querySelector('#partlist'), buildSubtypeParts(subtype), partId, selectPart);
+}
+renderPartList(panel.querySelector('#partlist'), buildSubtypeParts(subtype), selectedPartId, selectPart);
 
 // Part picking with raycaster
 const raycaster = new THREE.Raycaster();
@@ -67,9 +84,7 @@ ctx.renderer.domElement.addEventListener('click', (e) => {
   raycaster.setFromCamera(mouse, ctx.camera);
   const hits = raycaster.intersectObjects(current.group.children, false);
   if (hits.length) {
-    const part = hits[0].object.userData.part;
-    highlightPart(current.meshes, part.id);
-    renderPartInfo(panel.querySelector('#partinfo'), part);
+    selectPart(hits[0].object.userData.part.id);
   }
 });
 

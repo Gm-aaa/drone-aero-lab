@@ -1,58 +1,145 @@
 import { DRONES } from '../data/drones.js';
 import { MATERIALS } from '../aero/aero.js';
 
-function slider(label, id, min, max, val, step) {
-  return `<label style="display:block;margin:8px 0">${label}
-    <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}" style="width:100%">
-    <span id="${id}-v">${val}</span></label>`;
+// 视觉方向（frontend-design 结论）：仪表盘美学 —— 数值一律等宽数字字体，
+// 每个滑块的强调色对应其在 3D 场景 / 图例中的箭头颜色（迎角→升力绿，风速/风向→风青），
+// 让"控制"与"可视化"的颜色语言保持一致，是本面板的视觉签名。
+
+const card = (title, body) => `
+  <div class="card">
+    <div class="section-label">${title}</div>
+    ${body}
+  </div>`;
+
+function slider(label, id, min, max, val, step, unit, accent) {
+  return `
+    <div class="slider-row">
+      <div class="slider-head">
+        <span class="label">${label}</span>
+        <span class="slider-value" id="${id}-v" style="color:${accent}">${val}${unit}</span>
+      </div>
+      <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}" style="--thumb-color:${accent}">
+    </div>`;
+}
+
+const legendRow = (color, text) => `
+  <div class="legend-row">
+    <span class="legend-swatch" style="background:${color}"></span>
+    <span>${text}</span>
+  </div>`;
+
+// 手动为自定义 range 轨道上色（已用 -webkit-appearance:none 关闭原生填充）
+function paintRange(el, accent) {
+  const min = Number(el.min), max = Number(el.max), val = Number(el.value);
+  const pct = max > min ? ((val - min) / (max - min)) * 100 : 0;
+  el.style.background = `linear-gradient(to right, ${accent} 0%, ${accent} ${pct}%, var(--border-strong) ${pct}%, var(--border-strong) 100%)`;
 }
 
 export function createUI(panel, { state, onSubtypeChange }) {
   const s = state.get();
   const subs = DRONES.multirotor.subtypes;
+
   panel.innerHTML = `
-    <h2 style="margin-bottom:8px">无人机空气动力学实验室</h2>
-    <div style="opacity:.6;font-size:12px;margin-bottom:12px">多旋翼 · 示意值，非精确工程值</div>
-    <label>子类
-      <select id="subtype" style="width:100%;margin:4px 0 12px">
-        ${Object.entries(subs).map(([k, v]) => `<option value="${k}" ${k === s.subtype ? 'selected' : ''}>${v.name}</option>`).join('')}
-      </select></label>
-    ${slider('迎角 (°)', 'aoa', 0, 30, s.aoaDeg, 1)}
-    ${slider('风速 (m/s)', 'wind', 0, 15, s.windSpeed, 0.5)}
-    ${slider('风向 (°)', 'wdir', 0, 360, s.windDirDeg, 5)}
-    <label>材料
-      <select id="material" style="width:100%;margin:4px 0 12px">
-        ${Object.values(MATERIALS).map((m) => `<option value="${m.id}" ${m.id === s.materialId ? 'selected' : ''}>${m.name}</option>`).join('')}
-      </select></label>
-    <div id="readout" style="margin-top:12px"></div>
-    <div id="partinfo" style="margin-top:12px;padding-top:12px;border-top:1px solid #333"></div>
+    <div class="panel-header">
+      <div class="panel-title">无人机空气动力学实验室</div>
+      <div class="panel-subtitle">多旋翼 · 示意值，非精确工程值</div>
+    </div>
+
+    ${card('机型', `
+      <div style="margin-bottom:10px">分类 <span class="chip">多旋翼</span></div>
+      <label>
+        <span class="field-label">子类</span>
+        <select id="subtype">
+          ${Object.entries(subs).map(([k, v]) => `<option value="${k}" ${k === s.subtype ? 'selected' : ''}>${v.name}</option>`).join('')}
+        </select>
+      </label>`)}
+
+    ${card('飞行参数', `
+      ${slider('桨叶迎角 α', 'aoa', 0, 30, s.aoaDeg, 1, '°', 'var(--lift)')}
+      ${slider('风速', 'wind', 0, 15, s.windSpeed, 0.5, ' m/s', 'var(--wind)')}
+      ${slider('风向', 'wdir', 0, 360, s.windDirDeg, 5, '°', 'var(--wind)')}
+      <label style="display:block;margin-top:12px">
+        <span class="field-label">材料</span>
+        <select id="material">
+          ${Object.values(MATERIALS).map((m) => `<option value="${m.id}" ${m.id === s.materialId ? 'selected' : ''}>${m.name}</option>`).join('')}
+        </select>
+      </label>`)}
+
+    ${card('图例', `
+      ${legendRow('var(--lift)', '升力（绿，向上；越长越大）')}
+      ${legendRow('var(--weight)', '重力（红，向下）')}
+      ${legendRow('var(--wind)', '风')}
+      ${legendRow('var(--downwash)', '下洗气流')}
+      <div class="legend-note">坐标轴 Y↑ = 升力方向；升力箭头颜色由绿→橙→红表示裕度下降 / 失速。</div>`)}
+
+    ${card('实时读数', `<div id="readout"></div>`)}
+
+    ${card('部件', `
+      <div id="partlist" class="part-list"></div>
+      <div id="partinfo" class="part-info"></div>`)}
   `;
 
   panel.querySelector('#subtype').onchange = (e) => { state.set({ subtype: e.target.value }); onSubtypeChange(); };
-  const bind = (id, key, cast) => {
+
+  const bind = (id, key, accent) => {
     const el = panel.querySelector(`#${id}`);
+    const valueEl = panel.querySelector(`#${id}-v`);
+    const unit = valueEl.textContent.replace(/^-?[\d.]+/, '');
+    paintRange(el, accent);
     el.oninput = () => {
-      panel.querySelector(`#${id}-v`).textContent = el.value;
-      state.set({ [key]: cast(el.value) });
+      valueEl.textContent = el.value + unit;
+      paintRange(el, accent);
+      state.set({ [key]: Number(el.value) });
     };
   };
-  bind('aoa', 'aoaDeg', Number);
-  bind('wind', 'windSpeed', Number);
-  bind('wdir', 'windDirDeg', Number);
+  bind('aoa', 'aoaDeg', 'var(--lift)');
+  bind('wind', 'windSpeed', 'var(--wind)');
+  bind('wdir', 'windDirDeg', 'var(--wind)');
   panel.querySelector('#material').onchange = (e) => state.set({ materialId: e.target.value });
 }
 
+const STATUS_META = {
+  climb: { label: '爬升 ▲', bg: 'rgba(34,197,94,.15)', fg: 'var(--lift)' },
+  hover: { label: '悬停 ●', bg: 'rgba(148,163,184,.14)', fg: 'var(--text-secondary)' },
+  stall: { label: '升力不足 ▼', bg: 'rgba(239,68,68,.15)', fg: 'var(--weight)' },
+};
+
 export function renderReadout(el, { lift, weight, status, material }) {
-  const label = { climb: '爬升 ▲', hover: '悬停 ●', stall: '升力不足 ▼' }[status];
+  const meta = STATUS_META[status];
+  const ratio = weight > 0 ? lift / weight : 0;
+  const pct = Math.max(0, Math.min(100, (ratio / 1.5) * 100));
+  const barColor = ratio >= 1 ? 'var(--lift)' : ratio >= 0.9 ? 'var(--warn)' : 'var(--weight)';
+
   el.innerHTML = `
-    <div>升力：${lift.toFixed(0)} N（示意）</div>
-    <div>重量：${weight.toFixed(0)} N（示意）</div>
-    <div style="margin:4px 0;font-weight:600">状态：${label}</div>
-    <div style="opacity:.8;font-size:12px">${material.name} 适用：${material.useCase}</div>`;
+    <div class="readout-row"><span>总升力</span><span class="readout-value">${lift.toFixed(0)} N</span></div>
+    <div class="readout-row"><span>重量</span><span class="readout-value">${weight.toFixed(0)} N</span></div>
+    <div class="status-row">
+      <span style="font-size:12.5px;color:var(--text-secondary)">状态</span>
+      <span class="status-pill" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>
+    </div>
+    <div class="ratio-block">
+      <div class="ratio-label"><span>升重比</span><b>${ratio.toFixed(2)}</b></div>
+      <div class="ratio-gauge">
+        <div class="ratio-zones"></div>
+        <div class="ratio-fill" style="width:${pct}%;background:${barColor}"></div>
+        <div class="ratio-tick"></div>
+      </div>
+    </div>
+    <div class="material-note"><b>${material.name}</b> 适用：${material.useCase}</div>`;
 }
 
 export function renderPartInfo(el, part) {
   el.innerHTML = part
-    ? `<div style="font-weight:600">${part.name}</div><div style="opacity:.8;margin-top:4px">${part.desc}</div>`
-    : `<div style="opacity:.6">点击机身部件查看说明</div>`;
+    ? `<div class="part-info-name">${part.name}</div><div class="part-info-desc">${part.desc}</div>`
+    : `<div class="part-info-empty">点击部件查看说明</div>`;
+}
+
+export function renderPartList(el, parts, selectedId, onSelect) {
+  // 按 name 去重，展示唯一部件类型
+  const seen = new Map();
+  for (const p of parts) if (!seen.has(p.name)) seen.set(p.name, p);
+  el.innerHTML = [...seen.values()]
+    .map((p) => `<button class="part-btn${p.id === selectedId ? ' selected' : ''}" data-id="${p.id}">${p.name}</button>`)
+    .join('');
+  el.querySelectorAll('button').forEach((b) => { b.onclick = () => onSelect(b.dataset.id); });
 }
