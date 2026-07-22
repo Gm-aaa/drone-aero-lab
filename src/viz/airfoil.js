@@ -12,13 +12,19 @@ function arrow(g, x1, y1, x2, y2, color) {
   g.closePath(); g.fill();
 }
 
+// 逻辑画布 240×150，按实际 canvas 尺寸等比放大绘制（文字随之放大）
+const LW = 240, LH = 150;
+
 export function createAirfoil(canvas) {
   const g = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
+  const k = Math.min(W / LW, H / LH);
   const clMax = liftCoefficient(15);
   function draw(aoaDeg) {
+    g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, W, H);
-    const cx = W * 0.5, cy = H * 0.58;
+    g.setTransform(k, 0, 0, k, 0, 0);
+    const cx = LW * 0.5, cy = LH * 0.56;
     // 相对来流（水平从左指向翼型）
     arrow(g, 24, cy, cx - 42, cy, '#7dd3fc');
     g.fillStyle = '#7dd3fc'; g.font = '12px sans-serif';
@@ -35,18 +41,19 @@ export function createAirfoil(canvas) {
     drawSection(aoaDeg + 8, '#cbd5e1', null);   // 根：迎角大
     drawSection(aoaDeg - 8, null, '#64748b');   // 尖：迎角小
     g.fillStyle = '#94a3b8'; g.font = '11px sans-serif';
-    g.fillText(`根 α+8°`, W - 70, H - 22);
-    g.fillText(`尖 α−8°`, W - 70, H - 8);
+    g.fillText('根 α+8°', LW - 70, LH - 30);
+    g.fillText('尖 α−8°', LW - 70, LH - 17);
+    g.fillText('两侧桨叶绕桨毂 180° 对称，桨距相反', 8, LH - 5);
     // 升力箭头（垂直向上，长度随 CL 连续，失速变橙）
     const cl = liftCoefficient(aoaDeg);
-    const len = 18 + 78 * Math.max(0, Math.min(1, cl / clMax));
+    const len = 18 + 72 * Math.max(0, Math.min(1, cl / clMax));
     arrow(g, cx, cy - 6, cx, cy - 6 - len, aoaDeg > 15 ? '#f97316' : '#22c55e');
     g.fillStyle = aoaDeg > 15 ? '#f97316' : '#22c55e';
     g.fillText('升力', cx + 8, cy - 6 - len + 6);
     // α 标注
     g.fillStyle = '#e5e7eb';
-    g.fillText(`桨叶迎角 α = ${aoaDeg}°`, 8, 16);
-    if (aoaDeg > 15) { g.fillStyle = '#f97316'; g.fillText('失速', W - 42, 16); }
+    g.fillText(`桨叶迎角 α = ${aoaDeg}°（0.75R 参考站）`, 8, 16);
+    if (aoaDeg > 15) { g.fillStyle = '#f97316'; g.fillText('失速', LW - 42, 16); }
   }
   return { draw };
 }
