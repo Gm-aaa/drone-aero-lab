@@ -21,7 +21,8 @@ function makeArc(r, y, color, flip = false) {
   const prev = pts[pts.length - 2];
   head.position.copy(end);
   head.lookAt(end.clone().add(end.clone().sub(prev)));
-  head.rotateX(Math.PI / 2);
+  // lookAt 使 -Z 指向前进方向；锥尖在 +Y，需绕 X 转 -90° 使 +Y→-Z（前方）
+  head.rotateX(-Math.PI / 2);
   const g = new THREE.Group();
   g.add(tube, head);
   return { group: g, mats: [tube.material, head.material], geos: [tube.geometry, head.geometry] };
