@@ -24,6 +24,7 @@ export function createViz(scene) {
   let flow = null;          // { points, geo, seed, rotorOf }
   let windVec = { x: 0, y: 0, z: 0 };
   let downStrength = 0.5;   // 0..1，随总升力
+  let flowDir = 1;          // 1=下洗（默认），-1=自转上行气流
 
   function clearRotors() {
     for (const a of rotorArrows) {
@@ -37,10 +38,10 @@ export function createViz(scene) {
 
   function setRotors(rs) {
     clearRotors();
-    rotors = rs;
+    rotors = rs.map((r) => ({ y: ROTOR_Y, ...r }));
     // 每旋翼升力箭头
     for (const r of rotors) {
-      const a = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(r.x, ROTOR_Y + 0.06, r.z), 0.4, 0x22c55e, 0.1, 0.06);
+      const a = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(r.x, r.y + 0.06, r.z), 0.4, 0x22c55e, 0.1, 0.06);
       rotorArrows.push(a); root.add(a);
     }
     // 下洗粒子束（每旋翼一列）
@@ -69,14 +70,14 @@ export function createViz(scene) {
     const jitter = (i % 7 - 3) * 0.012;
     let x = rotor.x, y, z = rotor.z + jitter;
     if (phase < 0.35) {
-      // 上方吸入：从外侧上方收拢到桨盘中心
+      // 上方吸入：从外侧上方收拢到桨盘中心（flowDir=-1 时吸入口在下方）
       const t = phase / 0.35;
-      y = ROTOR_Y + INTAKE_H * (1 - t);
+      y = rotor.y + flowDir * INTAKE_H * (1 - t);
       x = rotor.x + (1 - t) * jitter * 6;
     } else {
-      // 桨盘下方：向下成柱 + 轻微外扩 + 风平流
+      // 桨盘下方：向下成柱 + 轻微外扩 + 风平流（flowDir=-1 时流出在上方）
       const t = (phase - 0.35) / 0.65;
-      y = ROTOR_Y - DOWN_H * t + windVec.y * 0.02 * t;
+      y = rotor.y - flowDir * DOWN_H * t + windVec.y * 0.02 * t;
       x = rotor.x + jitter * (1 + t * 1.5) + windVec.x * 0.05 * t;
       z = rotor.z + jitter * (1 + t * 1.5) + windVec.z * 0.05 * t;
     }
@@ -103,6 +104,7 @@ export function createViz(scene) {
     }
     windVec = s.wind;
     downStrength = Math.max(0.25, Math.min(1.4, s.totalLift / (s.weight || 1)));
+    flowDir = s.flowDir ?? 1;
   }
 
   function tick(dt) {
