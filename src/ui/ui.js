@@ -1,5 +1,5 @@
 import { DRONES } from '../data/drones.js';
-import { MATERIALS } from '../aero/aero.js';
+import { MATERIALS, liftDragRatio, maxLiftAoa, maxLDAoa } from '../aero/aero.js';
 
 // 视觉方向（frontend-design 结论）：仪表盘美学 —— 数值一律等宽数字字体，
 // 每个滑块的强调色对应其在 3D 场景 / 图例中的箭头颜色（迎角→升力绿，风速/风向→风青），
@@ -58,6 +58,7 @@ export function createUI(panel, { state, onSubtypeChange }) {
       ${slider('桨叶迎角 α', 'aoa', 0, 30, s.aoaDeg, 1, '°', 'var(--lift)')}
       ${slider('风速', 'wind', 0, 15, s.windSpeed, 0.5, ' m/s', 'var(--wind)')}
       ${slider('风向', 'wdir', 0, 360, s.windDirDeg, 5, '°', 'var(--wind)')}
+      ${slider('垂直气流', 'updraft', -6, 6, s.updraft ?? 0, 0.5, ' m/s', 'var(--warn)')}
       <label style="display:block;margin-top:12px">
         <span class="field-label">材料</span>
         <select id="material">
@@ -70,7 +71,8 @@ export function createUI(panel, { state, onSubtypeChange }) {
       ${legendRow('var(--weight)', '重力（红，向下）')}
       ${legendRow('var(--wind)', '风')}
       ${legendRow('var(--downwash)', '下洗气流')}
-      <div class="legend-note">坐标轴 Y↑ = 升力方向；升力箭头颜色由绿→橙→红表示裕度下降 / 失速。</div>`)}
+      ${legendRow('var(--warn)', '升阻比 L/D 曲线 / 垂直气流')}
+      <div class="legend-note">坐标轴 Z↑ = 升力方向；升力箭头颜色由绿→橙→红表示裕度下降 / 失速。<br>风大→机身倾斜抗风，有效升力下降。</div>`)}
 
     ${card('实时读数', `<div id="readout"></div>`)}
 
@@ -95,6 +97,7 @@ export function createUI(panel, { state, onSubtypeChange }) {
   bind('aoa', 'aoaDeg', 'var(--lift)');
   bind('wind', 'windSpeed', 'var(--wind)');
   bind('wdir', 'windDirDeg', 'var(--wind)');
+  bind('updraft', 'updraft', 'var(--warn)');
   panel.querySelector('#material').onchange = (e) => state.set({ materialId: e.target.value });
 }
 
@@ -104,27 +107,30 @@ const STATUS_META = {
   stall: { label: '升力不足 ▼', bg: 'rgba(239,68,68,.15)', fg: 'var(--weight)' },
 };
 
-export function renderReadout(el, { lift, weight, status, material }) {
-  const meta = STATUS_META[status];
-  const ratio = weight > 0 ? lift / weight : 0;
+export function renderReadout(el, { totalLift, net, weight, aoaDeg, material }) {
+  const meta = STATUS_META[net.status];
+  const ratio = weight > 0 ? net.effectiveLift / weight : 0;
   const pct = Math.max(0, Math.min(100, (ratio / 1.5) * 100));
   const barColor = ratio >= 1 ? 'var(--lift)' : ratio >= 0.9 ? 'var(--warn)' : 'var(--weight)';
 
   el.innerHTML = `
-    <div class="readout-row"><span>总升力</span><span class="readout-value">${lift.toFixed(0)} N</span></div>
-    <div class="readout-row"><span>重量</span><span class="readout-value">${weight.toFixed(0)} N</span></div>
+    <div class="readout-row"><span>总升力</span><span class="readout-value">${totalLift.toFixed(0)} N</span></div>
+    <div class="readout-row"><span>有效升力（抗风后）</span><span class="readout-value">${net.effectiveLift.toFixed(0)} N</span></div>
+    <div class="readout-row"><span>阻力 ｜ 升阻比 L/D</span><span class="readout-value">${net.drag.toFixed(0)} N ｜ ${liftDragRatio(aoaDeg).toFixed(1)}</span></div>
+    <div class="readout-row"><span>抗风倾角 θ</span><span class="readout-value">${net.tiltDeg.toFixed(0)}°</span></div>
     <div class="status-row">
       <span style="font-size:12.5px;color:var(--text-secondary)">状态</span>
       <span class="status-pill" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>
     </div>
     <div class="ratio-block">
-      <div class="ratio-label"><span>升重比</span><b>${ratio.toFixed(2)}</b></div>
+      <div class="ratio-label"><span>净升重比</span><b>${ratio.toFixed(2)}</b></div>
       <div class="ratio-gauge">
         <div class="ratio-zones"></div>
         <div class="ratio-fill" style="width:${pct}%;background:${barColor}"></div>
         <div class="ratio-tick"></div>
       </div>
     </div>
+    <div style="font-size:11.5px;color:var(--text-tertiary);line-height:1.6;margin-top:2px">最大升力 @${maxLiftAoa()}°　最大升阻比 @${maxLDAoa()}°</div>
     <div class="material-note"><b>${material.name}</b> 适用：${material.useCase}</div>`;
 }
 

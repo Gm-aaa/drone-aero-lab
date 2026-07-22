@@ -56,7 +56,7 @@ function recompute() {
   const tiltAxis = new THREE.Vector3(Math.sin(wr), 0, -Math.cos(wr));
   current.group.setRotationFromAxisAngle(tiltAxis, net.tiltDeg * Math.PI / 180);
   viz.update({ perLift, totalLift, effectiveLift: net.effectiveLift, weight, wind });
-  renderReadout(panel.querySelector('#readout'), { lift: net.effectiveLift, weight, status: net.status, material: MATERIALS[s.materialId] });
+  renderReadout(panel.querySelector('#readout'), { totalLift, net, weight, aoaDeg: s.aoaDeg, material: MATERIALS[s.materialId] });
   airfoil.draw(s.aoaDeg);
   aerochart.draw(s.aoaDeg);
 }
