@@ -4,6 +4,7 @@ import { buildDrone, DRONES, applyMaterial, highlightPart, applyBladeTwist, buil
 import { createViz } from './viz/viz.js';
 import { createAxes, createGizmo } from './viz/axes.js';
 import { createAirfoil } from './viz/airfoil.js';
+import { createAeroChart } from './viz/aerochart.js';
 import { computeWeight, liftStatus, windVector, MATERIALS, perRotorLift, netLift, windVector3D } from './aero/aero.js';
 import { createState } from './state.js';
 import { createUI, renderReadout, renderPartInfo, renderPartList } from './ui/ui.js';
@@ -16,6 +17,7 @@ createAxes(ctx.content);
 const gizmo = createGizmo(ctx.renderer, ctx.camera);
 const panel = document.getElementById('panel');
 const airfoil = createAirfoil(document.getElementById('airfoil'));
+const aerochart = createAeroChart(document.getElementById('aerochart'));
 
 const state = createState({ subtype: 'octa', aoaDeg: 8, windSpeed: 4, windDirDeg: 0, materialId: 'carbon', updraft: 0 });
 
@@ -56,6 +58,7 @@ function recompute() {
   viz.update({ perLift, totalLift, effectiveLift: net.effectiveLift, weight, wind });
   renderReadout(panel.querySelector('#readout'), { lift: net.effectiveLift, weight, status: net.status, material: MATERIALS[s.materialId] });
   airfoil.draw(s.aoaDeg);
+  aerochart.draw(s.aoaDeg);
 }
 
 rebuild();
