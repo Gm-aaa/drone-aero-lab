@@ -116,7 +116,7 @@ export function bladeLinearSpeed(rpm, bladeLen) {
 
 // ===== 直升机（教学示意级） =====
 const TORQUE_K = 0.12;
-const TAIL_KT = 1.6;
+const TAIL_KT = 16.7; // 标定：默认尾桨距6°@2200RPM 恰好平衡默认主旋翼扭矩(~150N·m/臂1.5m)
 const YAW_KY = 0.05;
 
 export function mainRotorTorque(totalLift, rotorLen) {
