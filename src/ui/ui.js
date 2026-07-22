@@ -81,6 +81,15 @@ export function createUI(panel, { state, onSubtypeChange }) {
     ${card('部件', `
       <div id="partlist" class="part-list"></div>
       <div id="partinfo" class="part-info"></div>`)}
+
+    ${card('关于', `
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.7">
+        交互式学习无人机<b>结构组成</b>与<b>空气动力学</b>的教学项目。
+        当前为多旋翼（四/六/八轴），直升机与垂起固定翼在路线图中。<br>
+        所有数值为<b>教学示意</b>（简化解析模型，非 CFD / 工程值）。<br>
+        <a href="https://github.com/Gm-aaa/drone-aero-lab" target="_blank" rel="noopener"
+           style="color:var(--wind);text-decoration:none">GitHub 源码 ↗</a>
+      </div>`)}
   `;
 
   panel.querySelector('#subtype').onchange = (e) => { state.set({ subtype: e.target.value }); onSubtypeChange(); };
