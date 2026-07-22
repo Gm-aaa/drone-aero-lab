@@ -122,7 +122,10 @@ function recomputeHeli(s) {
   qPitch.setFromAxisAngle(_axisZ, -s.cyclicDeg * Math.PI / 180);
   baseQuat.copy(qWind).multiply(qPitch);
   const wind = windVector3D(s.windSpeed, s.windDirDeg, s.updraft ?? 0);
-  viz.update({ perLift: [], totalLift: cyc.vertical, effectiveLift: net.effectiveLift, weight, wind, flowDir: auto.mode === 'autorotation' ? -1 : 1 });
+  // 每副主旋翼一支升力箭头（共轴两支，各半）
+  const rotorN = subtype.config === 'coaxial' ? 2 : 1;
+  const perLift = Array.from({ length: rotorN }, () => totalLift / rotorN);
+  viz.update({ perLift, totalLift: cyc.vertical, effectiveLift: net.effectiveLift, weight, wind, flowDir: auto.mode === 'autorotation' ? -1 : 1 });
   heliViz.update({ torque, tailThrust: tailThrust ?? 0 });
   const aeroDrag = computeDrag({ ...aeroP, rotorCount: 1 });
   const yawState = subtype.config === 'coaxial' ? null : Math.abs(yr) < 0.02 ? 'balanced' : yr > 0 ? 'spinLeft' : 'spinRight';
@@ -150,6 +153,7 @@ function refreshUI() {
       recompute();
       selectedPartId = null;
       renderPartList(panel.querySelector('#partlist'), getSubtypeParts(subtype), selectedPartId, selectPart);
+      renderPartInfo(panel.querySelector('#partinfo'), null);
     },
     onCategoryChange: () => {
       rebuild();
@@ -157,6 +161,7 @@ function refreshUI() {
       recompute();
       selectedPartId = null;
       renderPartList(panel.querySelector('#partlist'), getSubtypeParts(subtype), selectedPartId, selectPart);
+      renderPartInfo(panel.querySelector('#partinfo'), null);
     },
   });
 }

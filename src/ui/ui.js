@@ -90,7 +90,8 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
       ${legendRow('var(--downwash)', '下洗气流')}
       ${legendRow('var(--warn)', '升阻比 L/D 曲线 / 垂直气流')}
       ${isHeli ? legendRow('#f97316', '主旋翼反扭矩（弧形箭头）') : ''}
-      ${isHeli ? legendRow('#22d3ee', '尾桨推力') : ''}
+      ${isHeli && curSub?.config === 'tailrotor' ? legendRow('#22d3ee', '尾桨推力') : ''}
+      ${isHeli && curSub?.config === 'coaxial' ? legendRow('#38bdf8', '下旋翼反扭矩——两弧反向，相互抵消') : ''}
       <div class="legend-note">坐标轴 Z↑ = 升力方向；升力箭头颜色由绿→橙→红表示裕度下降 / 失速。<br>风大→机身倾斜抗风，有效升力下降。</div>
       ${isHeli ? `<div class="legend-note">发动机关闭→气流自下而上驱动旋翼（自转下滑）。</div>` : ''}`)}
 
