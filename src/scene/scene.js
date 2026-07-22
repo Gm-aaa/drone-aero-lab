@@ -9,7 +9,7 @@ export function createScene(container) {
     50, container.clientWidth / container.clientHeight, 0.1, 1000,
   );
   camera.up.set(0, 0, 1);
-  camera.position.set(4, -4.5, 3);
+  camera.position.set(5, -5.5, 3.8);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));

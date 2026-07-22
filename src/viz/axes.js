@@ -47,8 +47,10 @@ export function createGizmo(renderer, mainCamera) {
     cam.position.set(0, 0, 4).applyQuaternion(mainCamera.quaternion);
     cam.quaternion.copy(mainCamera.quaternion);
     renderer.setScissorTest(true);
-    renderer.setViewport(sz.x - SIZE - PAD, PAD, SIZE, SIZE);
-    renderer.setScissor(sz.x - SIZE - PAD, PAD, SIZE, SIZE);
+    // 避开右侧 340px 固定面板，否则 gizmo 被面板盖住不可见
+    const gx = sz.x - 340 - SIZE - PAD;
+    renderer.setViewport(gx, PAD, SIZE, SIZE);
+    renderer.setScissor(gx, PAD, SIZE, SIZE);
     renderer.clearDepth();
     renderer.render(scene, cam);
     renderer.setScissorTest(false);
