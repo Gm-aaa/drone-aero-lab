@@ -108,3 +108,8 @@ export function maxLDAoa() {
   }
   return Math.round(best);
 }
+
+// 转速(RPM)+桨长 → 0.75R 参考站桨叶线速度(m/s)
+export function bladeLinearSpeed(rpm, bladeLen) {
+  return (rpm / 60) * 2 * Math.PI * 0.75 * (bladeLen / 2);
+}

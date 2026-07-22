@@ -146,3 +146,15 @@ describe('netLift', () => {
     expect(up.effectiveLift).toBeGreaterThan(110);
   });
 });
+
+import { bladeLinearSpeed } from './aero.js';
+describe('bladeLinearSpeed', () => {
+  it('默认工况(2200RPM, 0.42m)约等于 36 m/s(保持既有标定)', () => {
+    expect(bladeLinearSpeed(2200, 0.42)).toBeGreaterThan(34);
+    expect(bladeLinearSpeed(2200, 0.42)).toBeLessThan(38);
+  });
+  it('随转速与桨长单调增大', () => {
+    expect(bladeLinearSpeed(3000, 0.42)).toBeGreaterThan(bladeLinearSpeed(2200, 0.42));
+    expect(bladeLinearSpeed(2200, 0.6)).toBeGreaterThan(bladeLinearSpeed(2200, 0.42));
+  });
+});
