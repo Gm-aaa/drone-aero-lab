@@ -26,7 +26,11 @@ export function createViz(scene) {
   let downStrength = 0.5;   // 0..1，随总升力
 
   function clearRotors() {
-    for (const a of rotorArrows) root.remove(a);
+    for (const a of rotorArrows) {
+      root.remove(a);
+      a.line.material.dispose();
+      a.cone.material.dispose();
+    }
     rotorArrows = [];
     if (flow) { root.remove(flow.points); flow.geo.dispose(); flow.points.material.dispose(); flow = null; }
   }
