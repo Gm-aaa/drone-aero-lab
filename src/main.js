@@ -99,6 +99,7 @@ function recomputeMulti(s) {
 }
 
 function recomputeHeli(s) {
+  if (!heliViz) return;   // 分类刚切换、rebuild 尚未执行时的同步订阅触发：跳过，随后的 rebuild()+recompute() 会以正确状态重算
   applyMaterial(current.meshes, subtype, s.materialId);
   const mainLen = subtype.mainRotorLen * (s.bladeLen / 0.42);
   applyBladeTwist(current.meshes, subtype, s.aoaDeg, mainLen);
