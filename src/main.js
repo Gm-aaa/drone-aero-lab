@@ -9,8 +9,8 @@ import { createState } from './state.js';
 import { createUI, renderReadout, renderPartInfo, renderPartList } from './ui/ui.js';
 
 const ctx = createScene(document.getElementById('app'));
-const viz = createViz(ctx.scene);
-createAxes(ctx.scene);
+const viz = createViz(ctx.content);
+createAxes(ctx.content);
 const gizmo = createGizmo(ctx.renderer, ctx.camera);
 const panel = document.getElementById('panel');
 const airfoil = createAirfoil(document.getElementById('airfoil'));
@@ -20,7 +20,7 @@ const state = createState({ subtype: 'octa', aoaDeg: 8, windSpeed: 4, windDirDeg
 let subtype, current;
 function rebuild() {
   if (current) {
-    ctx.scene.remove(current.group);
+    ctx.content.remove(current.group);
     // 释放旧模型的 GPU 资源，避免切换子类时几何体/材质泄漏
     for (const mesh of Object.values(current.meshes)) {
       mesh.geometry.dispose();
@@ -29,7 +29,7 @@ function rebuild() {
   }
   subtype = DRONES.multirotor.subtypes[state.get().subtype];
   current = buildDrone(subtype, state.get().materialId);
-  ctx.scene.add(current.group);
+  ctx.content.add(current.group);
   const rotors = buildSubtypeParts(subtype)
     .filter((p) => p.id.startsWith('motor'))
     .map((p) => ({ x: p.position[0], z: p.position[2] }));

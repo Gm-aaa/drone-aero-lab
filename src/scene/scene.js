@@ -8,7 +8,8 @@ export function createScene(container) {
   const camera = new THREE.PerspectiveCamera(
     50, container.clientWidth / container.clientHeight, 0.1, 1000,
   );
-  camera.position.set(3, 2.5, 4);
+  camera.up.set(0, 0, 1);
+  camera.position.set(4, -4.5, 3);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -20,9 +21,13 @@ export function createScene(container) {
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.6));
   const dir = new THREE.DirectionalLight(0xffffff, 1.2);
-  dir.position.set(5, 8, 5);
+  dir.position.set(5, 5, 8);
   scene.add(dir);
-  scene.add(new THREE.GridHelper(10, 20, 0x334155, 0x1e293b));
+
+  const content = new THREE.Group();
+  content.rotation.x = Math.PI / 2;
+  scene.add(content);
+  content.add(new THREE.GridHelper(10, 20, 0x334155, 0x1e293b));
 
   function onResize() {
     camera.aspect = container.clientWidth / container.clientHeight;
@@ -42,5 +47,5 @@ export function createScene(container) {
     loop();
   }
 
-  return { scene, camera, renderer, controls, start };
+  return { scene, content, camera, renderer, controls, start };
 }
