@@ -2,14 +2,17 @@ import * as THREE from 'three';
 import { buildSubtypeParts, DRONES } from '../data/drones.js';
 import { MATERIALS } from '../aero/aero.js';
 
-export function makeTwistedBlade(length, chord, rootPitchDeg, tipPitchDeg, segments = 9) {
+export function makeTwistedBlade(length, chord, rootPitchDeg, tipPitchDeg, segments = 10) {
   const positions = [];
   const half = length / 2, c = chord / 2;
   const st = [];
   for (let i = 0; i <= segments; i++) {
     const x = -half + (length * i) / segments;
     const rFrac = Math.abs(x) / half;                 // 0=根(中心) 1=尖(两端)
-    const pitch = (rootPitchDeg + (tipPitchDeg - rootPitchDeg) * rFrac) * Math.PI / 180;
+    // 真实螺旋桨绕桨毂 180° 点对称：两半桨叶的桨距方向刚好相反，
+    // 旋转时两侧才都以前缘迎风、产生同向升力。
+    const sign = x >= 0 ? 1 : -1;
+    const pitch = sign * (rootPitchDeg + (tipPitchDeg - rootPitchDeg) * rFrac) * Math.PI / 180;
     const s = Math.sin(pitch), cs = Math.cos(pitch);
     st.push([[x, -c * s, c * cs], [x, c * s, -c * cs]]); // 前缘, 后缘(绕X按桨距旋转)
   }
@@ -69,11 +72,14 @@ export function applyMaterial(meshes, subtype, materialId) {
 }
 
 const WASHOUT = 8;
-export function applyBladeTwist(meshes, subtype, aoaDeg) {
+export function applyBladeTwist(meshes, subtype, aoaDeg, bladeLen) {
   for (const part of buildSubtypeParts(subtype)) {
     if (part.geometry.type === 'blade' && meshes[part.id]) {
       meshes[part.id].geometry.dispose();
-      meshes[part.id].geometry = makeTwistedBlade(part.geometry.args[0], part.geometry.args[1], aoaDeg + WASHOUT, aoaDeg - WASHOUT);
+      meshes[part.id].geometry = makeTwistedBlade(
+        bladeLen ?? part.geometry.args[0], part.geometry.args[1],
+        aoaDeg + WASHOUT, aoaDeg - WASHOUT,
+      );
     }
   }
 }
