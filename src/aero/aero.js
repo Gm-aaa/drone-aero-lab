@@ -53,3 +53,53 @@ export function liftColor(lift, weight) {
   const lerp = (a, b, u) => ({ r: a.r + (b.r - a.r) * u, g: a.g + (b.g - a.g) * u, b: a.b + (b.b - a.b) * u });
   return t < 0.5 ? lerp(red, orange, t / 0.5) : lerp(orange, green, (t - 0.5) / 0.5);
 }
+
+const CD0 = 0.02;
+const K_INDUCED = 0.06;
+const BODY_CD_A = 1.1;   // 机体阻力系数×迎风面积(示意)
+const VWIND_A = 0.6;     // 垂直气流作用面积(示意)
+
+export function dragCoefficient(aoaDeg) {
+  const cl = liftCoefficient(aoaDeg);
+  return CD0 + K_INDUCED * cl * cl;
+}
+
+export function liftDragRatio(aoaDeg) {
+  const cd = dragCoefficient(aoaDeg);
+  return cd > 0 ? liftCoefficient(aoaDeg) / cd : 0;
+}
+
+export function computeDrag({ rotorCount, bladeSpeed, refArea, aoaDeg, airDensity }) {
+  const cd = dragCoefficient(aoaDeg);
+  return rotorCount * 0.5 * airDensity * bladeSpeed * bladeSpeed * refArea * cd;
+}
+
+export function horizontalWindDrag(windSpeed, airDensity) {
+  return 0.5 * airDensity * BODY_CD_A * windSpeed * windSpeed;
+}
+
+export function verticalWindForce(updraft, airDensity) {
+  return airDensity * VWIND_A * updraft * Math.abs(updraft);
+}
+
+export function windTilt({ dragForce, weight }) {
+  return Math.atan2(dragForce, Math.max(1e-6, weight));
+}
+
+export function netLift({ totalLift, weight, windSpeed, updraft, airDensity }) {
+  const drag = horizontalWindDrag(windSpeed, airDensity);
+  const tilt = windTilt({ dragForce: drag, weight });
+  const effectiveLift = totalLift * Math.cos(tilt) + verticalWindForce(updraft, airDensity);
+  return { effectiveLift, tiltDeg: tilt * 180 / Math.PI, drag, status: liftStatus(effectiveLift, weight) };
+}
+
+export function maxLiftAoa() { return 15; }
+
+export function maxLDAoa() {
+  let best = 0, bestLD = -1;
+  for (let a = 0; a <= 20; a += 0.5) {
+    const ld = liftDragRatio(a);
+    if (ld > bestLD) { bestLD = ld; best = a; }
+  }
+  return Math.round(best);
+}

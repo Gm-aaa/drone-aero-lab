@@ -77,3 +77,63 @@ describe('liftColor', () => {
     expect(Math.abs(a.g - b.g)).toBeLessThan(0.15);
   });
 });
+
+import {
+  dragCoefficient, liftDragRatio, computeDrag, horizontalWindDrag,
+  verticalWindForce, windTilt, netLift, maxLiftAoa, maxLDAoa,
+} from './aero.js';
+
+describe('dragCoefficient', () => {
+  it('迎角越大阻力系数越大(诱导阻力)', () => {
+    expect(dragCoefficient(10)).toBeGreaterThan(dragCoefficient(2));
+  });
+  it('0° 有基础寄生阻力', () => {
+    expect(dragCoefficient(0)).toBeCloseTo(0.02, 5);
+  });
+});
+
+describe('liftDragRatio', () => {
+  it('存在峰值：中小迎角优于极小和极大迎角', () => {
+    const peak = maxLDAoa();
+    expect(liftDragRatio(peak)).toBeGreaterThan(liftDragRatio(1));
+    expect(liftDragRatio(peak)).toBeGreaterThan(liftDragRatio(25));
+  });
+  it('maxLDAoa 落在 3–9° 区间', () => {
+    expect(maxLDAoa()).toBeGreaterThanOrEqual(3);
+    expect(maxLDAoa()).toBeLessThanOrEqual(9);
+  });
+});
+
+describe('verticalWindForce', () => {
+  it('上升气流为正、下沉为负', () => {
+    expect(verticalWindForce(3, 1.225)).toBeGreaterThan(0);
+    expect(verticalWindForce(-3, 1.225)).toBeLessThan(0);
+  });
+});
+
+describe('windTilt', () => {
+  it('阻力越大倾角越大、重量越大倾角越小', () => {
+    expect(windTilt({ dragForce: 40, weight: 100 })).toBeGreaterThan(windTilt({ dragForce: 10, weight: 100 }));
+    expect(windTilt({ dragForce: 40, weight: 200 })).toBeLessThan(windTilt({ dragForce: 40, weight: 100 }));
+  });
+});
+
+describe('netLift', () => {
+  const base = { totalLift: 110, weight: 100, airDensity: 1.225 };
+  it('无风时有效升力=总升力', () => {
+    const r = netLift({ ...base, windSpeed: 0, updraft: 0 });
+    expect(r.effectiveLift).toBeCloseTo(110, 5);
+    expect(r.tiltDeg).toBeCloseTo(0, 5);
+  });
+  it('侧风降低有效升力', () => {
+    const r = netLift({ ...base, windSpeed: 10, updraft: 0 });
+    expect(r.effectiveLift).toBeLessThan(110);
+    expect(r.tiltDeg).toBeGreaterThan(0);
+  });
+  it('下沉气流降低、上升气流提高有效升力', () => {
+    const down = netLift({ ...base, windSpeed: 0, updraft: -4 });
+    const up = netLift({ ...base, windSpeed: 0, updraft: 4 });
+    expect(down.effectiveLift).toBeLessThan(110);
+    expect(up.effectiveLift).toBeGreaterThan(110);
+  });
+});
