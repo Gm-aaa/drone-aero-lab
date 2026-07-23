@@ -67,7 +67,7 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
       </label>`)}
 
     ${card('飞行参数', `
-      ${slider('桨叶迎角 α', 'aoa', 0, 30, s.aoaDeg, 1, '°', 'var(--lift)')}
+      ${slider(isHeli ? '主旋翼总距 α' : '桨叶局部迎角 α', 'aoa', 0, 30, s.aoaDeg, 1, '°', 'var(--lift)')}
       ${slider('转速', 'rpm', 1000, 4000, s.rpm ?? 2200, 100, ' RPM', 'var(--lift)')}
       ${slider('旋翼直径', 'rotordiameter', 0.25, 0.6, s.rotorDiameter ?? 0.42, 0.01, ' m', 'var(--lift)')}
       ${slider('风速', 'wind', 0, 15, s.windSpeed, 0.5, ' m/s', 'var(--wind)')}

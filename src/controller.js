@@ -46,7 +46,7 @@ function recomputeMulti(s, deps, attitude) {
   viz.update({ perLift, totalLift, effectiveLift: net.effectiveLift, weight, wind });
   const aeroDrag = computeDrag({ ...aeroP, rotorCount: subtype.rotorCount });
   renderReadout(panel.querySelector('#readout'), { totalLift, net, weight, aoaDeg: s.aoaDeg, aeroDrag, material: MATERIALS[s.materialId] });
-  airfoil.draw(s.aoaDeg);
+  airfoil.draw({ category: s.category, aoaDeg: s.aoaDeg });
   aerochart.draw(s.aoaDeg);
   return { yawRate: 0, rpmFactor: 1 };
 }
@@ -89,7 +89,12 @@ function recomputeHeli(s, deps, attitude) {
     totalLift, net, weight, aoaDeg: s.aoaDeg, aeroDrag, material: MATERIALS[s.materialId],
     heli: { torque, tailThrust, yawState, forward: cyc.forward, mode: auto.mode, descentRate: auto.descentRate },
   });
-  airfoil.draw(s.aoaDeg);
+  airfoil.draw({
+    category: s.category,
+    aoaDeg: s.aoaDeg,
+    cyclicDeg: s.cyclicDeg,
+    engineOn: s.engineOn,
+  });
   aerochart.draw(s.aoaDeg);
   return { yawRate: yr, rpmFactor: auto.rpmFactor };
 }

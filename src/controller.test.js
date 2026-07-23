@@ -38,6 +38,10 @@ describe('recompute', () => {
     const attitude = createAttitude();
 
     recompute(baseState, deps, attitude);
+    expect(deps.airfoil.draw).toHaveBeenLastCalledWith(expect.objectContaining({
+      category: 'multirotor',
+      aoaDeg: 8,
+    }));
     const firstGeometry = current.meshes.prop0.geometry;
     recompute({ ...baseState, windSpeed: 10 }, deps, attitude);
     expect(current.meshes.prop0.geometry).toBe(firstGeometry);
@@ -59,6 +63,11 @@ describe('recompute', () => {
     expect(autorotating.rpmFactor).toBeCloseTo(0.85, 5);
     expect(autorotating.yawRate).toBeCloseTo(powered.yawRate * 0.85 ** 2, 5);
     expect(deps.viz.update).toHaveBeenLastCalledWith(expect.objectContaining({ flowDir: -1 }));
+    expect(deps.airfoil.draw).toHaveBeenLastCalledWith(expect.objectContaining({
+      category: 'helicopter',
+      cyclicDeg: 0,
+      engineOn: false,
+    }));
   });
 
   it('发动机关闭且总距过大时仍显示自下而上的相对气流', () => {

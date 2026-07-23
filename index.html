@@ -160,15 +160,18 @@
         border-radius: 10px; padding: 10px; backdrop-filter: blur(10px);
       }
       #airfoil-box { left: 12px; }
-      #aerochart-box { left: 392px; }
+      #aerochart-box { left: 472px; }
       .viz-title {
         color: var(--text-secondary); font-family: var(--font-mono); font-size: 11px;
         letter-spacing: .06em; text-transform: uppercase; margin: 2px 4px 8px;
       }
       canvas { display: block; }
 
-      @media (max-width: 1200px) {
+      @media (max-width: 1280px) {
         #aerochart-box { display: none; }
+      }
+      @media (max-width: 820px) {
+        #airfoil-box { display: none; }
       }
       @media (max-width: 760px) {
         #app { bottom: 55%; }
@@ -185,9 +188,9 @@
   <body>
     <div id="app"></div>
     <aside id="panel" aria-label="无人机参数与读数"></aside>
-    <section id="airfoil-box" aria-label="桨叶剖面图">
-      <div class="viz-title">桨叶剖面（迎角示意）</div>
-      <canvas id="airfoil" width="336" height="210" role="img" aria-label="桨叶根部和尖部迎角及升力示意图"></canvas>
+    <section id="airfoil-box" aria-label="旋翼桨根变距图">
+      <div class="viz-title">旋翼桨根变距</div>
+      <canvas id="airfoil" width="420" height="260" role="img" aria-label="整片旋翼桨叶绕桨根长轴改变桨距的三维与轴向双视图"></canvas>
     </section>
     <section id="aerochart-box" aria-label="空气动力学曲线图">
       <div class="viz-title">空气动力学曲线（CL 与 L/D 随迎角）</div>

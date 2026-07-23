@@ -1,4 +1,5 @@
 import { liftCoefficient, liftDragRatio, maxLiftAoa, maxLDAoa } from '../aero/aero.js';
+import { setupHiDPICanvas } from './canvas.js';
 
 // 配色（dataviz 技能：categorical 定序色板，深色画布档位，已用 validate_palette.js 校验
 // CVD/对比度全部 PASS）：CL 用 slot1 blue，L/D 用 slot2 orange。文字统一用中性墨色，
@@ -11,8 +12,7 @@ const AXIS_COLOR = '#334155';
 const GRID_COLOR = 'rgba(148,163,184,.10)';
 
 export function createAeroChart(canvas) {
-  const g = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
+  const { context: g, width: W, height: H, beginFrame } = setupHiDPICanvas(canvas, 400, 230);
   const padL = 46, padR = 12, padT = 24, padB = 52;
   const x0 = padL, x1 = W - padR, y0 = H - padB, y1 = padT;
   const AOA_MAX = 30;
@@ -87,7 +87,7 @@ export function createAeroChart(canvas) {
   }
 
   function draw(aoaDeg) {
-    g.clearRect(0, 0, W, H);
+    beginFrame();
     // 轴
     g.strokeStyle = AXIS_COLOR; g.lineWidth = 1;
     g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y0); g.moveTo(x0, y0); g.lineTo(x0, y1); g.stroke();
