@@ -44,7 +44,11 @@ export function createViz(scene) {
 
   function setRotors(rs) {
     clearRotors();
-    rotors = rs.map((r) => ({ y: ROTOR_Y, ...r }));
+    rotors = rs.map((r) => ({
+      y: ROTOR_Y,
+      direction: { x: 0, y: 1, z: 0 },
+      ...r,
+    }));
     // 每旋翼升力箭头
     for (const r of rotors) {
       const a = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(r.x, r.y + 0.06, r.z), 0.4, 0x22c55e, 0.1, 0.06);
@@ -74,18 +78,28 @@ export function createViz(scene) {
   // 相位 phase(0..1)：0=桨盘上方吸入口，经桨盘，1=下洗柱底部
   function writeParticle(arr, i, rotor, phase) {
     const jitter = (i % 7 - 3) * 0.012;
-    let x = rotor.x, y, z = rotor.z + jitter;
+    const d = rotor.direction;
+    // 选一条与推力轴近似垂直的方向，让粒子束保持可见宽度。
+    const side = Math.abs(d.y) > 0.9 ? { x: 0, y: 0, z: 1 } : { x: -d.y, y: d.x, z: 0 };
+    let x = rotor.x + side.x * jitter;
+    let y = rotor.y + side.y * jitter;
+    let z = rotor.z + side.z * jitter;
     if (phase < 0.35) {
-      // 上方吸入：从外侧上方收拢到桨盘中心（flowDir=-1 时吸入口在下方）
+      // 推力轴正侧吸入；自转时整体流向反转。
       const t = phase / 0.35;
-      y = rotor.y + flowDir * INTAKE_H * (1 - t);
-      x = rotor.x + (1 - t) * jitter * 6;
+      const axial = flowDir * INTAKE_H * (1 - t);
+      const spread = (1 - t) * jitter * 6;
+      x = rotor.x + d.x * axial + side.x * spread;
+      y = rotor.y + d.y * axial + side.y * spread;
+      z = rotor.z + d.z * axial + side.z * spread;
     } else {
-      // 桨盘下方：向下成柱 + 轻微外扩 + 风平流（flowDir=-1 时流出在上方）
+      // 沿推力反方向形成尾流，并受环境风平流。
       const t = (phase - 0.35) / 0.65;
-      y = rotor.y - flowDir * DOWN_H * t + windVec.y * 0.02 * t;
-      x = rotor.x + jitter * (1 + t * 1.5) + windVec.x * 0.05 * t;
-      z = rotor.z + jitter * (1 + t * 1.5) + windVec.z * 0.05 * t;
+      const axial = -flowDir * DOWN_H * t;
+      const spread = jitter * (1 + t * 1.5);
+      x = rotor.x + d.x * axial + side.x * spread + windVec.x * 0.05 * t;
+      y = rotor.y + d.y * axial + side.y * spread + windVec.y * 0.02 * t;
+      z = rotor.z + d.z * axial + side.z * spread + windVec.z * 0.05 * t;
     }
     arr[i * 3] = x; arr[i * 3 + 1] = y; arr[i * 3 + 2] = z;
   }
@@ -95,11 +109,29 @@ export function createViz(scene) {
     const wShare = s.weight / N;
     for (let i = 0; i < rotorArrows.length; i++) {
       const lift = s.perLift[i] ?? 0;
+      const position = s.rotorPositions?.[i];
+      if (position) {
+        rotors[i].x = position.x;
+        rotors[i].y = position.y;
+        rotors[i].z = position.z;
+        rotorArrows[i].position.set(position.x, position.y + 0.06, position.z);
+      }
+      const direction = s.rotorDirections?.[i] ?? { x: 0, y: 1, z: 0 };
+      const vector = new THREE.Vector3(direction.x, direction.y, direction.z);
+      if (vector.lengthSq() > 1e-8) {
+        vector.normalize();
+        rotors[i].direction = { x: vector.x, y: vector.y, z: vector.z };
+        rotorArrows[i].setDirection(vector);
+      }
       const len = Math.max(0.05, Math.min(1.2, lift / 120));
       rotorArrows[i].setLength(len, 0.1, 0.06);
       rotorArrows[i].setColor(toColor(liftColor(lift, wShare)));
     }
-    totalLift.setLength(Math.max(0.1, Math.min(2.4, s.totalLift / 120)), 0.18, 0.11);
+    const totalDirection = s.totalDirection ?? { x: 0, y: 1, z: 0 };
+    totalLift.setDirection(new THREE.Vector3(
+      totalDirection.x, totalDirection.y, totalDirection.z,
+    ).normalize());
+    totalLift.setLength(Math.max(0.1, Math.min(2.4, (s.totalMagnitude ?? s.totalLift) / 120)), 0.18, 0.11);
     totalLift.setColor(toColor(liftColor(s.effectiveLift, s.weight)));
     gravity.setLength(Math.max(0.1, Math.min(2.4, s.weight / 120)), 0.15, 0.09);
     const wlen = Math.hypot(s.wind.x, s.wind.y, s.wind.z);

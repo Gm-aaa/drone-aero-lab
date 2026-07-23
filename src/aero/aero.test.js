@@ -215,3 +215,53 @@ describe('autorotation', () => {
     expect(b.rpmFactor).toBeGreaterThanOrEqual(0.2);
   });
 });
+
+import {
+  fixedWingForces, transitionBlend, vtolPhase, wingStallSpeed, transitionSafety,
+} from './aero.js';
+
+describe('垂起固定翼气动', () => {
+  it('机翼在零空速不产生升力，升力随空速平方增加', () => {
+    const base = { wingArea: 1.5, aspectRatio: 6, aoaDeg: 6 };
+    expect(fixedWingForces({ ...base, airspeed: 0 }).lift).toBe(0);
+    const slow = fixedWingForces({ ...base, airspeed: 10 }).lift;
+    const fast = fixedWingForces({ ...base, airspeed: 20 }).lift;
+    expect(fast).toBeCloseTo(slow * 4, 5);
+  });
+
+  it('失速角后机翼升力下降并给出失速标志', () => {
+    const base = { wingArea: 1.5, aspectRatio: 6, airspeed: 20 };
+    const peak = fixedWingForces({ ...base, aoaDeg: 15 });
+    const stalled = fixedWingForces({ ...base, aoaDeg: 25 });
+    expect(stalled.lift).toBeLessThan(peak.lift);
+    expect(stalled.stalled).toBe(true);
+  });
+
+  it('动力交接采用端点平滑的 0..1 曲线', () => {
+    expect(transitionBlend(0)).toBe(0);
+    expect(transitionBlend(45)).toBeCloseTo(0.5, 5);
+    expect(transitionBlend(90)).toBe(1);
+  });
+
+  it('过渡阶段分类清晰', () => {
+    expect(vtolPhase(0)).toBe('hover');
+    expect(vtolPhase(45)).toBe('transition');
+    expect(vtolPhase(90)).toBe('cruise');
+  });
+
+  it('重量增加会提高失速速度', () => {
+    expect(wingStallSpeed({ weight: 400, wingArea: 1.5 }))
+      .toBeGreaterThan(wingStallSpeed({ weight: 200, wingArea: 1.5 }));
+  });
+
+  it('升力缺口或机翼失速会使过渡不安全', () => {
+    expect(transitionSafety({
+      verticalLift: 400, weight: 400, airspeed: 20, stallSpeed: 12, wingStalled: false,
+    }).safe).toBe(true);
+    const unsafe = transitionSafety({
+      verticalLift: 250, weight: 400, airspeed: 8, stallSpeed: 12, wingStalled: true,
+    });
+    expect(unsafe.safe).toBe(false);
+    expect(unsafe.reasons.length).toBeGreaterThanOrEqual(2);
+  });
+});

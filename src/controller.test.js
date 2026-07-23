@@ -25,6 +25,7 @@ function makeDeps(current, subtype) {
     panel: { querySelector: () => readout },
     viz: { update: vi.fn() },
     heliViz: { update: vi.fn() },
+    vtolViz: { update: vi.fn() },
     airfoil: { draw: vi.fn() },
     aerochart: { draw: vi.fn() },
   };
@@ -48,6 +49,55 @@ describe('recompute', () => {
 
     recompute({ ...baseState, aoaDeg: 9 }, deps, attitude);
     expect(current.meshes.prop0.geometry).not.toBe(firstGeometry);
+  });
+
+  it('倾转旋翼过渡时同时产生垂直和前向推力，并把机翼升力计入总升力', () => {
+    const subtype = DRONES.vtol.subtypes.tiltrotor;
+    const current = buildDrone(subtype, 'carbon');
+    const deps = makeDeps(current, subtype);
+    const result = recompute({
+      ...baseState,
+      category: 'vtol',
+      subtype: 'tiltrotor',
+      rotorDiameter: 0.58,
+      rpm: 2600,
+      transitionDeg: 45,
+      airspeed: 18,
+      wingAoaDeg: 6,
+    }, deps, createAttitude());
+
+    expect(result.transitionDeg).toBe(45);
+    const vizState = deps.viz.update.mock.lastCall[0];
+    expect(vizState.rotorDirections[0].x).toBeGreaterThan(0);
+    expect(vizState.rotorDirections[0].y).toBeGreaterThan(0);
+    expect(deps.vtolViz.update).toHaveBeenCalledWith(expect.objectContaining({
+      wingLift: expect.any(Number),
+      forwardThrust: expect.any(Number),
+    }));
+    expect(deps.airfoil.draw).toHaveBeenCalledWith(expect.objectContaining({
+      category: 'vtol',
+      config: 'tiltrotor',
+    }));
+  });
+
+  it('升力＋巡航在过渡中降低升力桨转速并提高推进桨转速', () => {
+    const subtype = DRONES.vtol.subtypes.liftcruise;
+    const deps = makeDeps(buildDrone(subtype, 'carbon'), subtype);
+    const result = recompute({
+      ...baseState,
+      category: 'vtol',
+      subtype: 'liftcruise',
+      rotorDiameter: 0.58,
+      rpm: 2600,
+      transitionDeg: 60,
+      airspeed: 20,
+      wingAoaDeg: 6,
+    }, deps, createAttitude());
+
+    expect(result.liftRotorFactor).toBeLessThan(1);
+    expect(result.cruiseRotorFactor).toBeGreaterThan(0);
+    const vizState = deps.viz.update.mock.lastCall[0];
+    expect(vizState.rotorDirections.at(-1)).toEqual({ x: 1, y: 0, z: 0 });
   });
 
   it('自转时主旋翼和尾桨使用同一个转速系数', () => {

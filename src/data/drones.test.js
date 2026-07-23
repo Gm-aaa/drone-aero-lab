@@ -62,3 +62,34 @@ describe('DRONES.helicopter', () => {
     }
   });
 });
+
+describe('DRONES.vtol', () => {
+  it('包含倾转旋翼与升力＋巡航两种典型构型', () => {
+    expect(Object.keys(DRONES.vtol.subtypes)).toEqual(
+      expect.arrayContaining(['tiltrotor', 'liftcruise']),
+    );
+  });
+
+  it('倾转旋翼有两个可倾转旋翼', () => {
+    const parts = getSubtypeParts(DRONES.vtol.subtypes.tiltrotor);
+    expect(parts.filter((p) => p.tiltRotor)).toHaveLength(2);
+  });
+
+  it('升力＋巡航具有四个升力旋翼和一个独立推进桨', () => {
+    const parts = getSubtypeParts(DRONES.vtol.subtypes.liftcruise);
+    expect(parts.filter((p) => p.liftRotor)).toHaveLength(4);
+    expect(parts.filter((p) => p.cruiseRotor)).toHaveLength(1);
+  });
+
+  it('两种构型均具有固定翼和完整部件说明', () => {
+    for (const subtype of Object.values(DRONES.vtol.subtypes)) {
+      const parts = getSubtypeParts(subtype);
+      expect(parts.some((p) => p.fixedWing)).toBe(true);
+      for (const part of parts) {
+        expect(part.name).toBeTruthy();
+        expect(part.desc).toBeTruthy();
+        expect(part.geometry).toBeTruthy();
+      }
+    }
+  });
+});

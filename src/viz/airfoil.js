@@ -294,6 +294,124 @@ function drawDiagram(g, state, helicopter) {
   label(g, aoaDeg > 15 ? '失速' : '升力', 375, 75, aoaDeg > 15 ? COLORS.warn : COLORS.lift, 'left', 'bold 11px sans-serif');
 }
 
+function drawMiniVtol(g, cx, cy, angleDeg, config, active, caption) {
+  g.fillStyle = active ? 'rgba(56,189,248,.10)' : 'rgba(255,255,255,.018)';
+  g.strokeStyle = active ? COLORS.bladeEdge : 'rgba(255,255,255,.08)';
+  g.lineWidth = active ? 1.5 : 1;
+  g.beginPath();
+  g.roundRect(cx - 57, cy - 29, 114, 62, 8);
+  g.fill();
+  g.stroke();
+
+  g.strokeStyle = active ? COLORS.text : COLORS.muted;
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(cx - 28, cy + 7);
+  g.lineTo(cx + 28, cy + 7);
+  g.moveTo(cx - 16, cy + 1);
+  g.lineTo(cx + 17, cy + 13);
+  g.stroke();
+
+  const a = angleDeg * Math.PI / 180;
+  if (config === 'tiltrotor') {
+    for (const x of [cx - 22, cx + 22]) {
+      g.strokeStyle = COLORS.root;
+      g.lineWidth = 4;
+      g.beginPath();
+      g.moveTo(x, cy + 7);
+      g.lineTo(x + Math.sin(a) * 13, cy + 7 - Math.cos(a) * 13);
+      g.stroke();
+      arrow(
+        g,
+        x + Math.sin(a) * 15,
+        cy + 7 - Math.cos(a) * 15,
+        x + Math.sin(a) * 29,
+        cy + 7 - Math.cos(a) * 29,
+        COLORS.lift,
+        1.5,
+      );
+    }
+  } else {
+    const fade = 1 - 0.78 * (angleDeg / 90);
+    g.save();
+    g.globalAlpha = fade;
+    arrow(g, cx - 21, cy + 2, cx - 21, cy - 20, COLORS.lift, 1.5);
+    arrow(g, cx + 8, cy + 2, cx + 8, cy - 20, COLORS.lift, 1.5);
+    g.restore();
+    g.save();
+    g.globalAlpha = Math.max(0.18, angleDeg / 90);
+    arrow(g, cx + 24, cy + 7, cx + 45, cy + 7, COLORS.root, 1.5);
+    g.restore();
+  }
+  label(g, caption, cx, cy + 51, active ? COLORS.text : COLORS.muted, 'center', active ? 'bold 11px sans-serif' : '11px sans-serif');
+}
+
+function drawVtolDiagram(g, state) {
+  const {
+    config, transitionDeg, airspeed, wingAoaDeg,
+    rotorVertical, wingLift, forwardThrust, weight, safe,
+  } = state;
+  const phaseIndex = transitionDeg <= 10 ? 0 : transitionDeg >= 80 ? 2 : 1;
+  label(
+    g,
+    config === 'tiltrotor' ? '倾转旋翼：推力转向，机翼接管升力' : '升力＋巡航：两套动力完成升力交接',
+    12, 18, COLORS.text, 'left', 'bold 13px sans-serif',
+  );
+  label(g, safe ? '包线正常' : '过渡风险', 408, 18, safe ? COLORS.lift : COLORS.warn, 'right', 'bold 12px sans-serif');
+
+  drawMiniVtol(g, 69, 58, 0, config, phaseIndex === 0, '垂直起降');
+  drawMiniVtol(g, 210, 58, transitionDeg, config, phaseIndex === 1, `当前 ${transitionDeg}°`);
+  drawMiniVtol(g, 351, 58, 90, config, phaseIndex === 2, '固定翼巡航');
+
+  // 当前状态侧视图：空速、翼弦迎角、旋翼推力和机翼升力同时呈现。
+  const ox = 175;
+  const oy = 181;
+  const wa = wingAoaDeg * Math.PI / 180;
+  g.strokeStyle = COLORS.reference;
+  g.setLineDash([5, 4]);
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(20, oy);
+  g.lineTo(402, oy);
+  g.stroke();
+  g.setLineDash([]);
+  arrow(g, 30, oy + 18, 104, oy + 18, COLORS.flow, 2);
+  label(g, `空速 ${airspeed} m/s`, 67, oy + 37, COLORS.flow, 'center', 'bold 11px sans-serif');
+
+  g.save();
+  g.translate(ox, oy);
+  g.rotate(-wa);
+  g.fillStyle = 'rgba(191,219,254,.22)';
+  g.strokeStyle = COLORS.bladeEdge;
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(-55, 0);
+  g.quadraticCurveTo(0, -9, 62, 0);
+  g.quadraticCurveTo(0, 7, -55, 0);
+  g.fill();
+  g.stroke();
+  g.restore();
+  label(g, `机翼 αw ${wingAoaDeg}°`, ox, oy + 38, COLORS.bladeEdge, 'center', 'bold 11px sans-serif');
+
+  const maxForce = Math.max(weight, rotorVertical + wingLift, forwardThrust, 1);
+  const scale = 68 / maxForce;
+  arrow(g, ox - 30, oy - 4, ox - 30, oy - 4 - rotorVertical * scale, COLORS.lift, 2.5);
+  arrow(g, ox + 20, oy - 4, ox + 20, oy - 4 - wingLift * scale, '#60a5fa', 2.5);
+  arrow(g, ox + 62, oy, ox + 62 + forwardThrust * scale, oy, COLORS.root, 2.5);
+  label(g, `旋翼 ${rotorVertical.toFixed(0)}N`, 235, 144, COLORS.lift, 'left', '11px sans-serif');
+  label(g, `机翼 ${wingLift.toFixed(0)}N`, 235, 161, '#60a5fa', 'left', '11px sans-serif');
+  label(g, `推进 ${forwardThrust.toFixed(0)}N`, 235, 178, COLORS.root, 'left', '11px sans-serif');
+  label(g, `重量 ${weight.toFixed(0)}N`, 235, 195, COLORS.warn, 'left', '11px sans-serif');
+
+  const handoff = weight > 0 ? Math.max(0, Math.min(1, wingLift / weight)) : 0;
+  label(g, '机翼接管比例', 235, 221, COLORS.muted, 'left', '10.5px sans-serif');
+  g.fillStyle = 'rgba(255,255,255,.08)';
+  g.fillRect(314, 213, 88, 9);
+  g.fillStyle = safe ? '#60a5fa' : COLORS.warn;
+  g.fillRect(314, 213, 88 * handoff, 9);
+  label(g, `${Math.round(handoff * 100)}%`, 402, 240, safe ? COLORS.text : COLORS.warn, 'right', 'bold 11px sans-serif');
+}
+
 export function createAirfoil(canvas) {
   const { context: g, beginFrame } = setupHiDPICanvas(canvas, BW, BH);
   const title = canvas.closest?.('#airfoil-box')?.querySelector('.viz-title');
@@ -305,11 +423,17 @@ export function createAirfoil(canvas) {
     beginFrame();
     g.lineCap = 'round';
     g.lineJoin = 'round';
-    if (state.category === 'helicopter') {
+    if (state.category === 'vtol') {
+      if (title) title.textContent = '垂起固定翼过渡剖面';
+      canvas.setAttribute?.('aria-label', '垂起固定翼从悬停经过过渡到固定翼巡航的推力与升力交接图');
+      drawVtolDiagram(g, state);
+    } else if (state.category === 'helicopter') {
       if (title) title.textContent = '主旋翼三维变距';
+      canvas.setAttribute?.('aria-label', '整片主旋翼桨叶绕桨根长轴改变总距的三维与轴向双视图');
       drawDiagram(g, state, true);
     } else {
       if (title) title.textContent = '螺旋桨三维变距';
+      canvas.setAttribute?.('aria-label', '整片多旋翼螺旋桨绕桨根长轴改变桨距的三维与轴向双视图');
       drawDiagram(g, state, false);
     }
   }

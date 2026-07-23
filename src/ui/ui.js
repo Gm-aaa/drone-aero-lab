@@ -41,6 +41,7 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
   const cat = DRONES[catKey];
   const subs = cat.subtypes;
   const isHeli = catKey === 'helicopter';
+  const isVtol = catKey === 'vtol';
   const curSub = subs[s.subtype];
 
   // Fix #11: 保留面板滚动位置
@@ -67,10 +68,16 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
       </label>`)}
 
     ${card('飞行参数', `
-      ${slider(isHeli ? '主旋翼总距 α' : '桨叶局部迎角 α', 'aoa', 0, 30, s.aoaDeg, 1, '°', 'var(--lift)')}
+      ${isVtol ? slider(
+        curSub?.config === 'tiltrotor' ? '旋翼倾转角 β' : '巡航动力交接',
+        'transition', 0, 90, s.transitionDeg ?? 0, 1, '°', 'var(--warn)',
+      ) : ''}
+      ${isVtol ? slider('真空速', 'airspeed', 0, 40, s.airspeed ?? 0, 1, ' m/s', 'var(--wind)') : ''}
+      ${isVtol ? slider('机翼迎角 αw', 'wingaoa', -5, 25, s.wingAoaDeg ?? 6, 1, '°', '#60a5fa') : ''}
+      ${slider(isHeli ? '主旋翼总距 α' : isVtol ? '升力桨局部迎角 αr' : '桨叶局部迎角 α', 'aoa', 0, 30, s.aoaDeg, 1, '°', 'var(--lift)')}
       ${slider('转速', 'rpm', 1000, 4000, s.rpm ?? 2200, 100, ' RPM', 'var(--lift)')}
-      ${slider('旋翼直径', 'rotordiameter', 0.25, 0.6, s.rotorDiameter ?? 0.42, 0.01, ' m', 'var(--lift)')}
-      ${slider('风速', 'wind', 0, 15, s.windSpeed, 0.5, ' m/s', 'var(--wind)')}
+      ${slider('旋翼直径', 'rotordiameter', 0.25, isVtol ? 0.9 : 0.6, s.rotorDiameter ?? 0.42, 0.01, ' m', 'var(--lift)')}
+      ${slider(isVtol ? '环境风速' : '风速', 'wind', 0, 15, s.windSpeed, 0.5, ' m/s', 'var(--wind)')}
       ${slider('风向', 'wdir', 0, 360, s.windDirDeg, 5, '°', 'var(--wind)')}
       ${slider('垂直气流', 'updraft', -6, 6, s.updraft ?? 0, 0.5, ' m/s', 'var(--warn)')}
       ${isHeli && curSub?.config === 'tailrotor' ? slider('尾桨距', 'tailpitch', 0, 12, s.tailPitch ?? 6, 0.5, '°', 'var(--wind)') : ''}
@@ -92,11 +99,14 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
       ${legendRow('var(--wind)', '风')}
       ${legendRow('var(--downwash)', '下洗气流')}
       ${legendRow('var(--warn)', '升阻比 L/D 曲线 / 垂直气流')}
+      ${isVtol ? legendRow('#60a5fa', '机翼升力（随空速²建立）') : ''}
+      ${isVtol ? legendRow('#f59e0b', '前向推进力') : ''}
       ${isHeli ? legendRow('#f97316', '主旋翼反扭矩（弧形箭头）') : ''}
       ${isHeli && curSub?.config === 'tailrotor' ? legendRow('#22d3ee', '尾桨推力') : ''}
       ${isHeli && curSub?.config === 'coaxial' ? legendRow('#38bdf8', '下旋翼反扭矩——两弧反向，相互抵消') : ''}
       <div class="legend-note">坐标轴 Z↑ = 升力方向；升力箭头颜色由绿→橙→红表示裕度下降 / 失速。<br>风大→机身倾斜抗风，有效升力下降。</div>
-      ${isHeli ? `<div class="legend-note">发动机关闭→气流自下而上驱动旋翼（自转下滑）。</div>` : ''}`)}
+      ${isHeli ? `<div class="legend-note">发动机关闭→气流自下而上驱动旋翼（自转下滑）。</div>` : ''}
+      ${isVtol ? `<div class="legend-note">过渡必须先建立空速，让机翼升力接管，再卸载垂直旋翼；只推动“过渡”滑块并不会自动获得空速。</div>` : ''}`)}
 
     ${card('实时读数', `<div id="readout"></div>`)}
 
@@ -107,7 +117,7 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
     ${card('关于', `
       <div style="font-size:12px;color:var(--text-secondary);line-height:1.7">
         交互式学习无人机<b>结构组成</b>与<b>空气动力学</b>的教学项目。
-        当前涵盖多旋翼（四/六/八轴）与直升机（单旋翼带尾桨/共轴双旋翼），垂起固定翼在路线图中。<br>
+        当前涵盖多旋翼、直升机与垂起固定翼（倾转旋翼/升力＋巡航）。<br>
         所有数值为<b>教学示意</b>（简化解析模型，非 CFD / 工程值）。<br>
         <a href="https://github.com/Gm-aaa/drone-aero-lab" target="_blank" rel="noopener"
            style="color:var(--wind);text-decoration:none">GitHub 源码 ↗</a>
@@ -119,7 +129,11 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
 
   panel.querySelector('#category').onchange = (e) => {
     const c = e.target.value;
-    onCategoryChange({ category: c, subtype: Object.keys(DRONES[c].subtypes)[0] });
+    onCategoryChange({
+      ...DRONES[c].defaults,
+      category: c,
+      subtype: Object.keys(DRONES[c].subtypes)[0],
+    });
   };
   panel.querySelector('#subtype').onchange = (e) => onSubtypeChange({ subtype: e.target.value });
 
@@ -148,6 +162,9 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
     };
   };
   bind('aoa', 'aoaDeg', 'var(--lift)');
+  if (isVtol) bind('transition', 'transitionDeg', 'var(--warn)');
+  if (isVtol) bind('airspeed', 'airspeed', 'var(--wind)');
+  if (isVtol) bind('wingaoa', 'wingAoaDeg', '#60a5fa');
   bind('rpm', 'rpm', 'var(--lift)');
   bind('rotordiameter', 'rotorDiameter', 'var(--lift)');
   bind('wind', 'windSpeed', 'var(--wind)');
@@ -165,14 +182,14 @@ const STATUS_META = {
   stall: { label: '升力不足 ▼', bg: 'rgba(239,68,68,.15)', fg: 'var(--weight)' },
 };
 
-export function renderReadout(el, { totalLift, net, weight, aoaDeg, aeroDrag, material, heli }) {
+export function renderReadout(el, { totalLift, net, weight, aoaDeg, aeroDrag, material, heli, vtol }) {
   const meta = STATUS_META[net.status];
   const ratio = weight > 0 ? net.effectiveLift / weight : 0;
   const pct = Math.max(0, Math.min(100, (ratio / 1.5) * 100));
   const barColor = ratio >= 1 ? 'var(--lift)' : ratio >= 0.9 ? 'var(--warn)' : 'var(--weight)';
 
   el.innerHTML = `
-    <div class="readout-row"><span>总升力</span><span class="readout-value">${totalLift.toFixed(0)} N</span></div>
+    <div class="readout-row"><span>${vtol ? '合计垂直升力' : '总升力'}</span><span class="readout-value">${totalLift.toFixed(0)} N</span></div>
     <div class="readout-row"><span>有效升力（抗风后）</span><span class="readout-value">${net.effectiveLift.toFixed(0)} N</span></div>
     <div class="readout-row"><span>气动阻力（随α）｜ 升阻比 L/D</span><span class="readout-value">${aeroDrag.toFixed(0)} N ｜ ${liftDragRatio(aoaDeg).toFixed(1)}</span></div>
     <div class="readout-row"><span>风阻 ｜ 抗风倾角 θ</span><span class="readout-value">${net.drag.toFixed(0)} N ｜ ${net.tiltDeg.toFixed(0)}°</span></div>
@@ -186,6 +203,19 @@ export function renderReadout(el, { totalLift, net, weight, aoaDeg, aeroDrag, ma
     <div class="readout-row"><span>飞行模式</span><span class="readout-value"${heli.mode === 'crash' ? ' style="color:var(--weight)"' : ''}>${
       heli.mode === 'powered' ? '有动力' : heli.mode === 'autorotation' ? `自转下滑（约 ${heli.descentRate.toFixed(0)} m/s）` : '坠落警示！总距过大'
     }</span></div>` : ''}
+    ${vtol ? `
+    <div class="readout-row"><span>旋翼垂直分量</span><span class="readout-value">${vtol.rotorVertical.toFixed(0)} N</span></div>
+    <div class="readout-row"><span>机翼升力</span><span class="readout-value">${vtol.wingLift.toFixed(0)} N</span></div>
+    <div class="readout-row"><span>推进力 ｜ 机翼阻力</span><span class="readout-value">${vtol.forwardThrust.toFixed(0)} ｜ ${vtol.wingDrag.toFixed(0)} N</span></div>
+    <div class="readout-row"><span>真空速 ｜ 估算失速速度</span><span class="readout-value">${vtol.airspeed.toFixed(0)} ｜ ${vtol.stallSpeed.toFixed(1)} m/s</span></div>
+    <div class="readout-row"><span>飞行阶段</span><span class="readout-value">${
+      vtol.phase === 'hover' ? '垂直起降' : vtol.phase === 'transition' ? '过渡' : '固定翼巡航'
+    }</span></div>
+    <div style="margin:9px 0 4px;padding:8px 9px;border-radius:7px;font-size:11.5px;line-height:1.5;background:${
+      vtol.safety.safe ? 'rgba(34,197,94,.10)' : 'rgba(239,68,68,.12)'
+    };color:${vtol.safety.safe ? 'var(--lift)' : 'var(--weight)'}">${
+      vtol.safety.safe ? '过渡包线正常' : `过渡风险：${vtol.safety.reasons.join('；')}`
+    }</div>` : ''}
     <div class="status-row">
       <span style="font-size:12.5px;color:var(--text-secondary)">状态</span>
       <span class="status-pill" style="background:${meta.bg};color:${meta.fg}">${meta.label}</span>

@@ -23,7 +23,7 @@ function makeCanvas() {
 }
 
 describe('createAirfoil', () => {
-  it('分别绘制多旋翼局部迎角和直升机变距图', () => {
+  it('分别绘制多旋翼、直升机和垂起固定翼教学图', () => {
     const canvas = makeCanvas();
     const diagram = createAirfoil(canvas);
 
@@ -44,5 +44,19 @@ describe('createAirfoil', () => {
       cyclicDeg: 0,
       engineOn: false,
     })).not.toThrow();
+
+    expect(() => diagram.draw({
+      category: 'vtol',
+      config: 'tiltrotor',
+      transitionDeg: 45,
+      airspeed: 18,
+      wingAoaDeg: 6,
+      rotorVertical: 180,
+      wingLift: 140,
+      forwardThrust: 160,
+      weight: 300,
+      safe: true,
+    })).not.toThrow();
+    expect(canvas.title.textContent).toBe('垂起固定翼过渡剖面');
   });
 });

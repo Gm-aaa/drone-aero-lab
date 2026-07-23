@@ -148,3 +148,52 @@ export function autorotation({ engineOn, aoaDeg }) {
   const descentRate = 4 + 7.2 * t;
   return { mode: 'crash', rpmFactor, descentRate };
 }
+
+// ===== 垂起固定翼（教学示意级） =====
+const WING_EFFICIENCY = 0.82;
+const WING_CD0 = 0.035;
+
+export function fixedWingForces({
+  airspeed, wingArea, aspectRatio, aoaDeg, airDensity = 1.225,
+}) {
+  const speed = Math.max(0, airspeed);
+  const cl = liftCoefficient(aoaDeg);
+  const induced = cl * cl / (Math.PI * Math.max(1, aspectRatio) * WING_EFFICIENCY);
+  const cd = WING_CD0 + induced;
+  const dynamicPressure = 0.5 * airDensity * speed * speed;
+  return {
+    lift: dynamicPressure * wingArea * cl,
+    drag: dynamicPressure * wingArea * cd,
+    cl,
+    cd,
+    stalled: aoaDeg > STALL_DEG,
+  };
+}
+
+export function transitionBlend(transitionDeg) {
+  const t = Math.max(0, Math.min(1, transitionDeg / 90));
+  // smoothstep 避免动力分配在两端出现突变。
+  return t * t * (3 - 2 * t);
+}
+
+export function vtolPhase(transitionDeg) {
+  if (transitionDeg <= 10) return 'hover';
+  if (transitionDeg >= 80) return 'cruise';
+  return 'transition';
+}
+
+export function wingStallSpeed({ weight, wingArea, airDensity = 1.225 }) {
+  return Math.sqrt(
+    Math.max(0, 2 * weight / (airDensity * Math.max(1e-6, wingArea) * CL_MAX)),
+  );
+}
+
+export function transitionSafety({
+  verticalLift, weight, airspeed, stallSpeed, wingStalled,
+}) {
+  const reasons = [];
+  if (wingStalled) reasons.push('机翼迎角超过失速角');
+  if (verticalLift < weight * 0.9) reasons.push('垂直升力存在明显缺口');
+  if (airspeed < stallSpeed && verticalLift < weight * 0.98) reasons.push('空速尚不足以由机翼接管');
+  return { safe: reasons.length === 0, reasons };
+}

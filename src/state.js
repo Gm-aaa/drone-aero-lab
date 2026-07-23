@@ -1,7 +1,8 @@
 const BOUNDS = {
-  aoaDeg: [0, 30], rpm: [1000, 4000], rotorDiameter: [0.25, 0.6],
+  aoaDeg: [0, 30], rpm: [1000, 4000], rotorDiameter: [0.25, 1.8],
   windSpeed: [0, 15], windDirDeg: [0, 360], updraft: [-6, 6],
   tailPitch: [0, 12], cyclicDeg: [0, 15],
+  transitionDeg: [0, 90], airspeed: [0, 40], wingAoaDeg: [-5, 25],
 };
 
 function validate(patch) {

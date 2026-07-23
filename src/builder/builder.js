@@ -30,7 +30,40 @@ function makeGeometry(g) {
   if (g.type === 'box') return new THREE.BoxGeometry(...g.args);
   if (g.type === 'cylinder') return new THREE.CylinderGeometry(...g.args);
   if (g.type === 'blade') return makeTwistedBlade(g.args[0], g.args[1], 16, 0);
+  if (g.type === 'wing') return makeWingGeometry(...g.args);
   throw new Error(`未知几何体: ${g.type}`);
+}
+
+// X=弦向、Y=厚度、Z=翼展方向的对称梯形机翼。
+export function makeWingGeometry(span, rootChord, tipChord, thickness) {
+  const h = span / 2;
+  const vertices = [];
+  const faces = [];
+  for (const y of [-thickness / 2, thickness / 2]) {
+    vertices.push(
+      rootChord / 2, y, 0,
+      -rootChord / 2, y, 0,
+      tipChord / 2, y, h,
+      -tipChord / 2, y, h,
+      tipChord / 2, y, -h,
+      -tipChord / 2, y, -h,
+    );
+  }
+  const quad = (a, b, c, d) => faces.push(a, b, c, a, c, d);
+  // 下表面、上表面、前缘、后缘、左右翼尖。
+  quad(0, 2, 3, 1); quad(6, 7, 9, 8);
+  quad(0, 6, 8, 2); quad(1, 3, 9, 7);
+  quad(2, 8, 9, 3); quad(4, 5, 11, 10);
+  // 另一半翼的上下表面。
+  quad(0, 1, 5, 4); quad(6, 10, 11, 7);
+  const positions = [];
+  for (const index of faces) positions.push(
+    vertices[index * 3], vertices[index * 3 + 1], vertices[index * 3 + 2],
+  );
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.computeVertexNormals();
+  return geo;
 }
 
 export function buildDrone(subtype, materialId) {
