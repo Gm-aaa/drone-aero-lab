@@ -8,6 +8,10 @@ const DOWN_H = 0.9;        // 下洗柱向下延伸
 
 function toColor(c) { return new THREE.Color(c.r, c.g, c.b); }
 
+export function advanceFlowPhase(phase, dt, strength) {
+  return (phase + dt * 0.35 * strength) % 1;
+}
+
 export function createViz(scene) {
   const root = new THREE.Group();
   scene.add(root);
@@ -29,7 +33,9 @@ export function createViz(scene) {
   function clearRotors() {
     for (const a of rotorArrows) {
       root.remove(a);
+      a.line.geometry.dispose();
       a.line.material.dispose();
+      a.cone.geometry.dispose();
       a.cone.material.dispose();
     }
     rotorArrows = [];
@@ -111,8 +117,7 @@ export function createViz(scene) {
     if (!flow) return;
     const arr = flow.geo.attributes.position.array;
     for (let i = 0; i < flow.seed.length; i++) {
-      flow.seed[i] += dt * 0.35 * downStrength;
-      if (flow.seed[i] > 1) flow.seed[i] -= 1;
+      flow.seed[i] = advanceFlowPhase(flow.seed[i], dt, downStrength);
       writeParticle(arr, i, rotors[flow.rotorOf[i]], flow.seed[i]);
     }
     flow.geo.attributes.position.needsUpdate = true;

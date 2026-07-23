@@ -18,7 +18,7 @@ function slider(label, id, min, max, val, step, unit, accent) {
         <span class="label">${label}</span>
         <span class="slider-value" id="${id}-v" style="color:${accent}">${val}${unit}</span>
       </div>
-      <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}" style="--thumb-color:${accent}">
+      <input type="range" id="${id}" aria-label="${label}" min="${min}" max="${max}" step="${step}" value="${val}" style="--thumb-color:${accent}">
     </div>`;
 }
 
@@ -43,6 +43,9 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
   const isHeli = catKey === 'helicopter';
   const curSub = subs[s.subtype];
 
+  // Fix #11: 保留面板滚动位置
+  const scrollTop = panel.scrollTop;
+
   panel.innerHTML = `
     <div class="panel-header">
       <div class="panel-title">无人机空气动力学实验室</div>
@@ -66,7 +69,7 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
     ${card('飞行参数', `
       ${slider('桨叶迎角 α', 'aoa', 0, 30, s.aoaDeg, 1, '°', 'var(--lift)')}
       ${slider('转速', 'rpm', 1000, 4000, s.rpm ?? 2200, 100, ' RPM', 'var(--lift)')}
-      ${slider('桨叶长度', 'bladelen', 0.25, 0.6, s.bladeLen ?? 0.42, 0.01, ' m', 'var(--lift)')}
+      ${slider('旋翼直径', 'rotordiameter', 0.25, 0.6, s.rotorDiameter ?? 0.42, 0.01, ' m', 'var(--lift)')}
       ${slider('风速', 'wind', 0, 15, s.windSpeed, 0.5, ' m/s', 'var(--wind)')}
       ${slider('风向', 'wdir', 0, 360, s.windDirDeg, 5, '°', 'var(--wind)')}
       ${slider('垂直气流', 'updraft', -6, 6, s.updraft ?? 0, 0.5, ' m/s', 'var(--warn)')}
@@ -111,12 +114,26 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
       </div>`)}
   `;
 
+  // Fix #11: 恢复滚动位置
+  panel.scrollTop = scrollTop;
+
   panel.querySelector('#category').onchange = (e) => {
     const c = e.target.value;
-    state.set({ category: c, subtype: Object.keys(DRONES[c].subtypes)[0] });
-    onCategoryChange();
+    onCategoryChange({ category: c, subtype: Object.keys(DRONES[c].subtypes)[0] });
   };
-  panel.querySelector('#subtype').onchange = (e) => { state.set({ subtype: e.target.value }); onSubtypeChange(); };
+  panel.querySelector('#subtype').onchange = (e) => onSubtypeChange({ subtype: e.target.value });
+
+  // Fix #12: rAF 合并——同一帧内多次滑块拖动只触发一次 state.set
+  let pendingPatch = null;
+  let flushScheduled = false;
+  function scheduleFlush() {
+    if (flushScheduled) return;
+    flushScheduled = true;
+    requestAnimationFrame(() => {
+      flushScheduled = false;
+      if (pendingPatch) { state.set(pendingPatch); pendingPatch = null; }
+    });
+  }
 
   const bind = (id, key, accent) => {
     const el = panel.querySelector(`#${id}`);
@@ -126,12 +143,13 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
     el.oninput = () => {
       valueEl.textContent = el.value + unit;
       paintRange(el, accent);
-      state.set({ [key]: Number(el.value) });
+      pendingPatch = { ...pendingPatch, [key]: Number(el.value) };
+      scheduleFlush();
     };
   };
   bind('aoa', 'aoaDeg', 'var(--lift)');
   bind('rpm', 'rpm', 'var(--lift)');
-  bind('bladelen', 'bladeLen', 'var(--lift)');
+  bind('rotordiameter', 'rotorDiameter', 'var(--lift)');
   bind('wind', 'windSpeed', 'var(--wind)');
   bind('wdir', 'windDirDeg', 'var(--wind)');
   bind('updraft', 'updraft', 'var(--warn)');
@@ -191,12 +209,19 @@ export function renderPartInfo(el, part) {
 }
 
 export function renderPartList(el, parts, selectedId, onSelect) {
-  // 按 name 去重，展示唯一部件类型
-  const selectedName = parts.find((p) => p.id === selectedId)?.name;
-  const seen = new Map();
-  for (const p of parts) if (!seen.has(p.name)) seen.set(p.name, p);
-  el.innerHTML = [...seen.values()]
-    .map((p) => `<button class="part-btn${p.name === selectedName ? ' selected' : ''}" data-id="${p.id}">${p.name}</button>`)
+  const nameCount = new Map();
+  for (const p of parts) nameCount.set(p.name, (nameCount.get(p.name) ?? 0) + 1);
+  const nameIdx = new Map();
+  el.innerHTML = parts
+    .map((p) => {
+      let label = p.name;
+      if (nameCount.get(p.name) > 1) {
+        const i = (nameIdx.get(p.name) ?? 0) + 1;
+        nameIdx.set(p.name, i);
+        label += ` ${i}`;
+      }
+      return `<button class="part-btn${p.id === selectedId ? ' selected' : ''}" data-id="${p.id}">${label}</button>`;
+    })
     .join('');
   el.querySelectorAll('button').forEach((b) => { b.onclick = () => onSelect(b.dataset.id); });
 }

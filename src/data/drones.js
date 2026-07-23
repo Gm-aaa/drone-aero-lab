@@ -31,7 +31,7 @@ export const DRONES = {
     name: '直升机',
     subtypes: {
       tailrotor: {
-        name: '单旋翼带尾桨', config: 'tailrotor', mainRotorLen: 1.6, tailArm: 1.5,
+        name: '单旋翼带尾桨', config: 'tailrotor', mainRotorDiameter: 1.6, tailArm: 1.5,
         parts: [
           { id: 'fuselage', name: '机身', desc: '承载动力、燃料/电池与航电的主体结构。',
             geometry: { type: 'box', args: [1.0, 0.42, 0.42] }, position: [0, 0.30, 0], materialRole: 'structural' },
@@ -62,7 +62,7 @@ export const DRONES = {
         ],
       },
       coaxial: {
-        name: '共轴双旋翼', config: 'coaxial', mainRotorLen: 1.4,
+        name: '共轴双旋翼', config: 'coaxial', mainRotorDiameter: 1.4,
         parts: [
           { id: 'fuselage', name: '机身', desc: '共轴构型机身更紧凑，无长尾梁需求。',
             geometry: { type: 'box', args: [0.82, 0.40, 0.40] }, position: [0, 0.28, 0], materialRole: 'structural' },
@@ -135,6 +135,10 @@ export function buildSubtypeParts(subtype) {
   return parts;
 }
 
+const _partsCache = new WeakMap();
 export function getSubtypeParts(subtype) {
-  return subtype.arms ? buildSubtypeParts(subtype) : subtype.parts;
+  if (!_partsCache.has(subtype)) {
+    _partsCache.set(subtype, subtype.arms ? buildSubtypeParts(subtype) : subtype.parts);
+  }
+  return _partsCache.get(subtype);
 }

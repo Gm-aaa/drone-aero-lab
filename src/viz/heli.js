@@ -66,7 +66,12 @@ export function createHeliViz(group, subtype) {
     group.remove(root);
     mats.forEach((m) => m.dispose());
     geos.forEach((g) => g.dispose());
-    if (tailArrow) { tailArrow.line.material.dispose(); tailArrow.cone.material.dispose(); }
+    if (tailArrow) {
+      tailArrow.line.geometry.dispose();
+      tailArrow.line.material.dispose();
+      tailArrow.cone.geometry.dispose();
+      tailArrow.cone.material.dispose();
+    }
   }
 
   return { update, dispose };

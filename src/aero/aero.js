@@ -100,27 +100,30 @@ export function netLift({ totalLift, weight, windSpeed, updraft, airDensity }) {
 
 export function maxLiftAoa() { return 15; }
 
-export function maxLDAoa() {
+const _maxLDAoa = (() => {
   let best = 0, bestLD = -1;
   for (let a = 0; a <= 20; a += 0.5) {
     const ld = liftDragRatio(a);
     if (ld > bestLD) { bestLD = ld; best = a; }
   }
   return Math.round(best);
-}
+})();
+export function maxLDAoa() { return _maxLDAoa; }
 
-// 转速(RPM)+桨长 → 0.75R 参考站桨叶线速度(m/s)
-export function bladeLinearSpeed(rpm, bladeLen) {
-  return (rpm / 60) * 2 * Math.PI * 0.75 * (bladeLen / 2);
+// 转速(RPM)+旋翼直径 → 0.75R 参考站桨叶线速度(m/s)
+export function bladeLinearSpeed(rpm, rotorDiameter) {
+  const radius = rotorDiameter / 2;
+  return (rpm / 60) * 2 * Math.PI * 0.75 * radius;
 }
 
 // ===== 直升机（教学示意级） =====
-const TORQUE_K = 0.12;
+const TORQUE_K = 0.24;
 const TAIL_KT = 16.7; // 标定：默认尾桨距6°@2200RPM 恰好平衡默认主旋翼扭矩(~150N·m/臂1.5m)
 const YAW_KY = 0.05;
 
-export function mainRotorTorque(totalLift, rotorLen) {
-  return TORQUE_K * totalLift * rotorLen;
+export function mainRotorTorque(totalLift, rotorDiameter) {
+  const radius = rotorDiameter / 2;
+  return TORQUE_K * totalLift * radius;
 }
 
 export function tailRotorThrust(tailPitchDeg, rpm) {
@@ -140,7 +143,8 @@ export function cyclicSplit(totalLift, cyclicDeg) {
 export function autorotation({ engineOn, aoaDeg }) {
   if (engineOn) return { mode: 'powered', rpmFactor: 1, descentRate: 0 };
   if (aoaDeg <= 6) return { mode: 'autorotation', rpmFactor: 0.85, descentRate: 4 };
-  // 总距过大：旋翼被气流拖慢，α 越大衰减越多（10°→0.7 线性降至 30°→0.2）
-  const f = Math.max(0.2, 0.7 - (aoaDeg - 10) * 0.025);
-  return { mode: 'crash', rpmFactor: f, descentRate: 10 + (aoaDeg - 6) * 0.3 };
+  const t = Math.min(1, (aoaDeg - 6) / 24);
+  const rpmFactor = Math.max(0.2, 0.85 - 0.65 * t);
+  const descentRate = 4 + 7.2 * t;
+  return { mode: 'crash', rpmFactor, descentRate };
 }
