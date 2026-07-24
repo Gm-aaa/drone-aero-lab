@@ -13,6 +13,7 @@ describe('liftCoefficient', () => {
   });
   it('失速角(15°)之后骤降', () => {
     expect(liftCoefficient(20)).toBeLessThan(liftCoefficient(15));
+    expect(liftCoefficient(15.01)).toBeLessThan(liftCoefficient(15) * 0.7);
   });
 });
 
@@ -20,6 +21,15 @@ describe('computeWeight', () => {
   it('材料密度越大重量越大', () => {
     const w = (id) => computeWeight({ bodyVolume: 1, materialId: id });
     expect(w('carbon')).toBeLessThan(w('aluminum'));
+  });
+  it('固定设备质量不受结构材料影响，结构体积和固定质量都会计入重量', () => {
+    const light = computeWeight({
+      fixedMass: 5, structuralVolume: 2, materialId: 'wood',
+    });
+    const heavy = computeWeight({
+      fixedMass: 6, structuralVolume: 3, materialId: 'wood',
+    });
+    expect(heavy).toBeGreaterThan(light);
   });
 });
 
@@ -217,10 +227,20 @@ describe('autorotation', () => {
 });
 
 import {
-  fixedWingForces, transitionBlend, vtolPhase, wingStallSpeed, transitionSafety,
+  fixedWingForces, fixedWingLiftDragRatio, maxFixedWingLDAoa, transitionBlend,
+  vtolPhase, wingStallSpeed, transitionSafety,
 } from './aero.js';
 
 describe('垂起固定翼气动', () => {
+  it('固定翼 L/D 使用包含展弦比的同一套阻力极线', () => {
+    const forces = fixedWingForces({
+      wingArea: 1.65, aspectRatio: 5.8, airspeed: 20, aoaDeg: 6,
+    });
+    expect(fixedWingLiftDragRatio(6, 5.8)).toBeCloseTo(forces.lift / forces.drag, 8);
+    const optimum = maxFixedWingLDAoa(5.8);
+    expect(fixedWingLiftDragRatio(optimum, 5.8))
+      .toBeGreaterThan(fixedWingLiftDragRatio(optimum + 3, 5.8));
+  });
   it('机翼在零空速不产生升力，升力随空速平方增加', () => {
     const base = { wingArea: 1.5, aspectRatio: 6, aoaDeg: 6 };
     expect(fixedWingForces({ ...base, airspeed: 0 }).lift).toBe(0);

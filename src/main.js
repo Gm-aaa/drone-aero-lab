@@ -22,9 +22,13 @@ const airfoil = createAirfoil(document.getElementById('airfoil'));
 const aerochart = createAeroChart(document.getElementById('aerochart'));
 
 const state = createState({
-  category: 'multirotor', subtype: 'octa', aoaDeg: 8, windSpeed: 4, windDirDeg: 0, materialId: 'carbon',
-  updraft: 0, rpm: 2200, rotorDiameter: 0.42, tailPitch: 6, cyclicDeg: 0, engineOn: true,
-  transitionDeg: 0, airspeed: 0, wingAoaDeg: 6,
+  category: 'multirotor',
+  subtype: 'octa',
+  ...DRONES.multirotor.defaults,
+  windSpeed: 4,
+  windDirDeg: 0,
+  materialId: 'carbon',
+  updraft: 0,
 });
 
 const attitude = createAttitude();
@@ -137,12 +141,12 @@ ctx.renderer.domElement.addEventListener('click', (e) => {
 
 ctx.start(
   (dt) => {
-    viz.tick(dt);
     const st = state.get();
     yawAngle += flightState.yawRate * dt;
     qYaw.setFromAxisAngle(_up, yawAngle);
     // Fix #2: yaw 绕世界垂直轴，先施加 yaw 再叠加 tilt（baseQuat 在 yaw 后的局部坐标系）
     current.group.quaternion.copy(qYaw).multiply(attitude.baseQuat);
+    viz.tick(dt, current.group.quaternion);
     for (const mesh of Object.values(current.meshes)) {
       const p = mesh.userData.part;
       if (p.tiltNacelle) {

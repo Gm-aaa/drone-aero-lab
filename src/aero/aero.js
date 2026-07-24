@@ -13,9 +13,9 @@ export function liftCoefficient(aoaDeg) {
   if (aoaDeg <= STALL_DEG) {
     return 2 * Math.PI * (aoaDeg * Math.PI / 180);
   }
-  // 失速后线性衰减
+  // 越过临界迎角后先发生明显升力损失，再随分离范围扩大继续衰减。
   const over = aoaDeg - STALL_DEG;
-  return Math.max(0, CL_MAX * (1 - over / 20));
+  return Math.max(0, CL_MAX * 0.65 * (1 - over / 15));
 }
 
 export function perRotorLift({ bladeSpeed, refArea, aoaDeg, airDensity }) {
@@ -27,9 +27,14 @@ export function computeLift({ rotorCount, bladeSpeed, refArea, aoaDeg, airDensit
   return rotorCount * perRotorLift({ bladeSpeed, refArea, aoaDeg, airDensity });
 }
 
-export function computeWeight({ bodyVolume, materialId }) {
+export function computeWeight({
+  bodyVolume,
+  structuralVolume = bodyVolume,
+  fixedMass = 0,
+  materialId,
+}) {
   const m = MATERIALS[materialId];
-  return m.density * bodyVolume * G;
+  return (fixedMass + m.density * structuralVolume) * G;
 }
 
 export function liftStatus(lift, weight) {
@@ -157,9 +162,7 @@ export function fixedWingForces({
   airspeed, wingArea, aspectRatio, aoaDeg, airDensity = 1.225,
 }) {
   const speed = Math.max(0, airspeed);
-  const cl = liftCoefficient(aoaDeg);
-  const induced = cl * cl / (Math.PI * Math.max(1, aspectRatio) * WING_EFFICIENCY);
-  const cd = WING_CD0 + induced;
+  const { cl, cd } = fixedWingCoefficients({ aspectRatio, aoaDeg });
   const dynamicPressure = 0.5 * airDensity * speed * speed;
   return {
     lift: dynamicPressure * wingArea * cl,
@@ -168,6 +171,31 @@ export function fixedWingForces({
     cd,
     stalled: aoaDeg > STALL_DEG,
   };
+}
+
+export function fixedWingCoefficients({ aspectRatio, aoaDeg }) {
+  const cl = liftCoefficient(aoaDeg);
+  const induced = cl * cl / (Math.PI * Math.max(1, aspectRatio) * WING_EFFICIENCY);
+  const cd = WING_CD0 + induced;
+  return { cl, cd };
+}
+
+export function fixedWingLiftDragRatio(aoaDeg, aspectRatio) {
+  const { cl, cd } = fixedWingCoefficients({ aspectRatio, aoaDeg });
+  return cd > 0 ? cl / cd : 0;
+}
+
+export function maxFixedWingLDAoa(aspectRatio) {
+  let best = 0;
+  let bestLD = -Infinity;
+  for (let aoa = 0; aoa <= 30; aoa += 0.5) {
+    const ld = fixedWingLiftDragRatio(aoa, aspectRatio);
+    if (ld > bestLD) {
+      best = aoa;
+      bestLD = ld;
+    }
+  }
+  return best;
 }
 
 export function transitionBlend(transitionDeg) {

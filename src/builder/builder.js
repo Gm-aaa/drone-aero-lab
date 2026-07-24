@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import { buildSubtypeParts, getSubtypeParts, DRONES } from '../data/drones.js';
 import { MATERIALS } from '../aero/aero.js';
 
+const TOTAL_WASHOUT_DEG = 16;
+
+export function bladePitchAtRadius(referenceAoaDeg, radiusFraction) {
+  return referenceAoaDeg + (0.75 - radiusFraction) * TOTAL_WASHOUT_DEG;
+}
+
 export function makeTwistedBlade(diameter, chord, rootPitchDeg, tipPitchDeg, segments = 10) {
   const positions = [];
   const half = diameter / 2, c = chord / 2;
@@ -104,14 +110,14 @@ export function applyMaterial(meshes, subtype, materialId) {
   }
 }
 
-const WASHOUT = 8;
 export function applyBladeTwist(meshes, subtype, aoaDeg, rotorDiameter) {
   for (const part of getSubtypeParts(subtype)) {
     if (part.geometry.type === 'blade' && !part.tailRotor && meshes[part.id]) {
       meshes[part.id].geometry.dispose();
       meshes[part.id].geometry = makeTwistedBlade(
         rotorDiameter ?? part.geometry.args[0], part.geometry.args[1],
-        aoaDeg + WASHOUT, aoaDeg - WASHOUT,
+        bladePitchAtRadius(aoaDeg, 0),
+        bladePitchAtRadius(aoaDeg, 1),
       );
     }
   }

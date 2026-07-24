@@ -29,6 +29,11 @@ export function createViz(scene) {
   let windVec = { x: 0, y: 0, z: 0 };
   let downStrength = 0.5;   // 0..1，随总升力
   let flowDir = 1;          // 1=下洗（默认），-1=自转上行气流
+  const attitude = new THREE.Quaternion();
+  const transformedPosition = new THREE.Vector3();
+  const transformedDirection = new THREE.Vector3();
+  const totalDirectionLocal = new THREE.Vector3(0, 1, 0);
+  let totalFollowsAttitude = true;
 
   function clearRotors() {
     for (const a of rotorArrows) {
@@ -44,10 +49,14 @@ export function createViz(scene) {
 
   function setRotors(rs) {
     clearRotors();
+    attitude.identity();
     rotors = rs.map((r) => ({
-      y: ROTOR_Y,
+      localPosition: new THREE.Vector3(r.x, r.y ?? ROTOR_Y, r.z),
+      localDirection: new THREE.Vector3(0, 1, 0),
+      x: r.x,
+      y: r.y ?? ROTOR_Y,
+      z: r.z,
       direction: { x: 0, y: 1, z: 0 },
-      ...r,
     }));
     // 每旋翼升力箭头
     for (const r of rotors) {
@@ -73,6 +82,33 @@ export function createViz(scene) {
     const points = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0x7dd3fc, size: 0.025, transparent: true, opacity: 0.85 }));
     root.add(points);
     flow = { points, geo, seed, rotorOf };
+    applyAttitude();
+  }
+
+  function applyAttitude(nextAttitude = attitude) {
+    attitude.copy(nextAttitude);
+    for (let i = 0; i < rotors.length; i++) {
+      const rotor = rotors[i];
+      transformedPosition.copy(rotor.localPosition).applyQuaternion(attitude);
+      transformedDirection.copy(rotor.localDirection).applyQuaternion(attitude).normalize();
+      rotor.x = transformedPosition.x;
+      rotor.y = transformedPosition.y;
+      rotor.z = transformedPosition.z;
+      rotor.direction = {
+        x: transformedDirection.x,
+        y: transformedDirection.y,
+        z: transformedDirection.z,
+      };
+      rotorArrows[i].position.copy(transformedPosition)
+        .addScaledVector(transformedDirection, 0.06);
+      rotorArrows[i].setDirection(transformedDirection);
+    }
+    transformedPosition.set(0, ROTOR_Y, 0).applyQuaternion(attitude);
+    totalLift.position.copy(transformedPosition);
+    gravity.position.copy(transformedPosition);
+    transformedDirection.copy(totalDirectionLocal);
+    if (totalFollowsAttitude) transformedDirection.applyQuaternion(attitude);
+    if (transformedDirection.lengthSq() > 1e-8) totalLift.setDirection(transformedDirection.normalize());
   }
 
   // 相位 phase(0..1)：0=桨盘上方吸入口，经桨盘，1=下洗柱底部
@@ -111,26 +147,21 @@ export function createViz(scene) {
       const lift = s.perLift[i] ?? 0;
       const position = s.rotorPositions?.[i];
       if (position) {
-        rotors[i].x = position.x;
-        rotors[i].y = position.y;
-        rotors[i].z = position.z;
-        rotorArrows[i].position.set(position.x, position.y + 0.06, position.z);
+        rotors[i].localPosition.set(position.x, position.y, position.z);
       }
       const direction = s.rotorDirections?.[i] ?? { x: 0, y: 1, z: 0 };
       const vector = new THREE.Vector3(direction.x, direction.y, direction.z);
       if (vector.lengthSq() > 1e-8) {
         vector.normalize();
-        rotors[i].direction = { x: vector.x, y: vector.y, z: vector.z };
-        rotorArrows[i].setDirection(vector);
+        rotors[i].localDirection.copy(vector);
       }
       const len = Math.max(0.05, Math.min(1.2, lift / 120));
       rotorArrows[i].setLength(len, 0.1, 0.06);
       rotorArrows[i].setColor(toColor(liftColor(lift, wShare)));
     }
     const totalDirection = s.totalDirection ?? { x: 0, y: 1, z: 0 };
-    totalLift.setDirection(new THREE.Vector3(
-      totalDirection.x, totalDirection.y, totalDirection.z,
-    ).normalize());
+    totalDirectionLocal.set(totalDirection.x, totalDirection.y, totalDirection.z).normalize();
+    totalFollowsAttitude = s.totalFollowsAttitude ?? s.totalDirection == null;
     totalLift.setLength(Math.max(0.1, Math.min(2.4, (s.totalMagnitude ?? s.totalLift) / 120)), 0.18, 0.11);
     totalLift.setColor(toColor(liftColor(s.effectiveLift, s.weight)));
     gravity.setLength(Math.max(0.1, Math.min(2.4, s.weight / 120)), 0.15, 0.09);
@@ -143,9 +174,11 @@ export function createViz(scene) {
     windVec = s.wind;
     downStrength = Math.max(0.25, Math.min(1.4, s.totalLift / (s.weight || 1)));
     flowDir = s.flowDir ?? 1;
+    applyAttitude();
   }
 
-  function tick(dt) {
+  function tick(dt, nextAttitude) {
+    if (nextAttitude) applyAttitude(nextAttitude);
     if (!flow) return;
     const arr = flow.geo.attributes.position.array;
     for (let i = 0; i < flow.seed.length; i++) {
@@ -155,5 +188,5 @@ export function createViz(scene) {
     flow.geo.attributes.position.needsUpdate = true;
   }
 
-  return { setRotors, update, tick };
+  return { root, setRotors, update, tick };
 }

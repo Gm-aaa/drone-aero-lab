@@ -105,7 +105,13 @@ describe('recompute', () => {
     const current = { meshes: {} };
     const deps = makeDeps(current, subtype);
     const attitude = createAttitude();
-    const poweredState = { ...baseState, category: 'helicopter', subtype: 'tailrotor', aoaDeg: 4 };
+    const poweredState = {
+      ...baseState,
+      category: 'helicopter',
+      subtype: 'tailrotor',
+      rotorDiameter: subtype.defaults.rotorDiameter,
+      aoaDeg: 4,
+    };
 
     const powered = recompute(poweredState, deps, attitude);
     const autorotating = recompute({ ...poweredState, engineOn: false }, deps, attitude);
@@ -128,6 +134,7 @@ describe('recompute', () => {
       ...baseState,
       category: 'helicopter',
       subtype: 'tailrotor',
+      rotorDiameter: subtype.defaults.rotorDiameter,
       aoaDeg: 12,
       engineOn: false,
     }, deps, createAttitude());

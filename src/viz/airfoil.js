@@ -1,4 +1,5 @@
 import { setupHiDPICanvas } from './canvas.js';
+import { bladePitchAtRadius } from '../builder/builder.js';
 
 const BW = 420;
 const BH = 260;
@@ -94,7 +95,7 @@ function drawBlade3D(g, origin, side, aoaDeg) {
     const t = i / segments;
     const radius = rootRadius + (tipRadius - rootRadius) * t;
     const chord = rootChord + (tipChord - rootChord) * t;
-    const pitch = aoaDeg + 8 - 16 * t;
+    const pitch = bladePitchAtRadius(aoaDeg, t);
     stations.push({
       leading: bladePoint(origin, side, radius, chord, pitch, -1),
       trailing: bladePoint(origin, side, radius, chord, pitch, 1),
@@ -194,9 +195,9 @@ function drawRootEndView(g, cx, cy, pitchDeg) {
 }
 
 function drawPitchReadout(g, aoaDeg, x, y) {
-  label(g, `桨根  ${aoaDeg + 8}°`, x, y, COLORS.root, 'left', 'bold 12px sans-serif');
+  label(g, `桨根  ${bladePitchAtRadius(aoaDeg, 0)}°`, x, y, COLORS.root, 'left', 'bold 12px sans-serif');
   label(g, `0.75R  ${aoaDeg}°`, x, y + 20, COLORS.flow, 'left', 'bold 12px sans-serif');
-  label(g, `桨尖  ${aoaDeg - 8}°`, x, y + 40, COLORS.muted, 'left', 'bold 12px sans-serif');
+  label(g, `桨尖  ${bladePitchAtRadius(aoaDeg, 1)}°`, x, y + 40, COLORS.muted, 'left', 'bold 12px sans-serif');
 }
 
 function drawHub(g, origin, helicopter) {
@@ -243,7 +244,7 @@ function drawHub(g, origin, helicopter) {
 function drawDiagram(g, state, helicopter) {
   const { aoaDeg, cyclicDeg = 0 } = state;
   const origin = { x: 210, y: 91 };
-  const rootPitch = aoaDeg + 8;
+  const rootPitch = bladePitchAtRadius(aoaDeg, 0);
 
   label(
     g,

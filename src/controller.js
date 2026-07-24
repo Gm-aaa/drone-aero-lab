@@ -3,12 +3,11 @@ import { applyMaterial, applyBladeTwist, getSubtypeParts } from './builder/build
 import {
   computeWeight, computeDrag, MATERIALS, perRotorLift, netLift, windVector3D, bladeLinearSpeed,
   mainRotorTorque, tailRotorThrust, yawRate, cyclicSplit, autorotation,
-  fixedWingForces, transitionBlend, vtolPhase, wingStallSpeed, transitionSafety,
+  fixedWingForces, maxFixedWingLDAoa, transitionBlend, vtolPhase, wingStallSpeed,
+  transitionSafety,
 } from './aero/aero.js';
 import { renderReadout } from './ui/ui.js';
 
-export const BODY_VOLUME = 6.7;
-export const HELI_BODY_VOLUME = 48;
 const REF_AREA_SCALE = 0.02 / 0.42;
 const VTOL_REF_AREA_SCALE = 0.075;
 const AIR_DENSITY = 1.225;
@@ -38,7 +37,7 @@ function recomputeMulti(s, deps, attitude) {
   const single = perRotorLift(aeroP);
   const perLift = Array.from({ length: subtype.rotorCount }, () => single);
   const totalLift = single * subtype.rotorCount;
-  const weight = computeWeight({ bodyVolume: BODY_VOLUME, materialId: s.materialId });
+  const weight = computeWeight({ ...subtype.massModel, materialId: s.materialId });
   const net = netLift({ totalLift, weight, windSpeed: s.windSpeed, updraft: s.updraft ?? 0, airDensity: AIR_DENSITY });
   const wind = windVector3D(s.windSpeed, s.windDirDeg, s.updraft ?? 0);
   const wr = s.windDirDeg * Math.PI / 180;
@@ -57,7 +56,7 @@ function recomputeHeli(s, deps, attitude) {
   const { current, subtype, viz, heliViz, panel, airfoil, aerochart } = deps;
   if (!heliViz) return { yawRate: 0, rpmFactor: 1 };
   applyMaterial(current.meshes, subtype, s.materialId);
-  const mainDiameter = subtype.mainRotorDiameter * (s.rotorDiameter / 0.42);
+  const mainDiameter = s.rotorDiameter;
   const bladeKey = `${s.aoaDeg}:${mainDiameter}`;
   if (current.bladeGeometryKey !== bladeKey) {
     applyBladeTwist(current.meshes, subtype, s.aoaDeg, mainDiameter);
@@ -69,7 +68,7 @@ function recomputeHeli(s, deps, attitude) {
   const nRotor = subtype.config === 'coaxial' ? 2 * 0.85 : 1;
   const totalLift = perRotorLift(aeroP) * nRotor;
   const cyc = cyclicSplit(totalLift, s.cyclicDeg);
-  const weight = computeWeight({ bodyVolume: HELI_BODY_VOLUME, materialId: s.materialId });
+  const weight = computeWeight({ ...subtype.massModel, materialId: s.materialId });
   const net = netLift({ totalLift: cyc.vertical, weight, windSpeed: s.windSpeed, updraft: s.updraft ?? 0, airDensity: AIR_DENSITY });
   const torque = subtype.config === 'coaxial' ? 0 : mainRotorTorque(totalLift, mainDiameter);
   const tailThrust = subtype.config === 'tailrotor' ? tailRotorThrust(s.tailPitch, effectiveRpm) : null;
@@ -170,7 +169,7 @@ function recomputeVtol(s, deps, attitude) {
     airDensity: AIR_DENSITY,
   });
   const totalVertical = rotorVertical + wing.lift;
-  const weight = computeWeight({ bodyVolume: subtype.bodyVolume, materialId: s.materialId });
+  const weight = computeWeight({ ...subtype.massModel, materialId: s.materialId });
   const net = netLift({
     totalLift: totalVertical,
     weight,
@@ -218,6 +217,7 @@ function recomputeVtol(s, deps, attitude) {
     weight,
     aoaDeg: s.wingAoaDeg,
     aeroDrag: wing.drag,
+    liftDragRatioValue: wing.cd > 0 ? wing.cl / wing.cd : 0,
     material: MATERIALS[s.materialId],
     vtol: {
       config: subtype.config,
@@ -231,6 +231,7 @@ function recomputeVtol(s, deps, attitude) {
       stallSpeed,
       transitionDeg: s.transitionDeg,
       rotorAoaDeg: s.aoaDeg,
+      maxLDAoa: maxFixedWingLDAoa(subtype.aspectRatio),
     },
   });
   airfoil.draw({
@@ -245,7 +246,7 @@ function recomputeVtol(s, deps, attitude) {
     weight,
     safe: safety.safe,
   });
-  aerochart.draw(s.wingAoaDeg);
+  aerochart.draw(s.wingAoaDeg, { aspectRatio: subtype.aspectRatio });
   return {
     yawRate: 0,
     rpmFactor: 1,

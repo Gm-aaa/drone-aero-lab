@@ -35,7 +35,36 @@ function paintRange(el, accent) {
   el.style.background = `linear-gradient(to right, ${accent} 0%, ${accent} ${pct}%, var(--border-strong) ${pct}%, var(--border-strong) 100%)`;
 }
 
+export function createPatchScheduler(state, {
+  requestFrame = requestAnimationFrame,
+  cancelFrame = cancelAnimationFrame,
+} = {}) {
+  let pendingPatch = null;
+  let frameId = null;
+  let disposed = false;
+
+  return {
+    schedule(patch) {
+      if (disposed) return;
+      pendingPatch = { ...pendingPatch, ...patch };
+      if (frameId != null) return;
+      frameId = requestFrame(() => {
+        frameId = null;
+        if (!disposed && pendingPatch) state.set(pendingPatch);
+        pendingPatch = null;
+      });
+    },
+    dispose() {
+      disposed = true;
+      pendingPatch = null;
+      if (frameId != null) cancelFrame(frameId);
+      frameId = null;
+    },
+  };
+}
+
 export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () => {} }) {
+  panel.__disposeDroneControls?.();
   const s = state.get();
   const catKey = s.category ?? 'multirotor';
   const cat = DRONES[catKey];
@@ -43,6 +72,7 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
   const isHeli = catKey === 'helicopter';
   const isVtol = catKey === 'vtol';
   const curSub = subs[s.subtype];
+  const rotorDiameterRange = cat.controls?.rotorDiameter ?? [0.25, 2];
 
   // Fix #11: 保留面板滚动位置
   const scrollTop = panel.scrollTop;
@@ -76,7 +106,7 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
       ${isVtol ? slider('机翼迎角 αw', 'wingaoa', -5, 25, s.wingAoaDeg ?? 6, 1, '°', '#60a5fa') : ''}
       ${slider(isHeli ? '主旋翼总距 α' : isVtol ? '升力桨局部迎角 αr' : '桨叶局部迎角 α', 'aoa', 0, 30, s.aoaDeg, 1, '°', 'var(--lift)')}
       ${slider('转速', 'rpm', 1000, 4000, s.rpm ?? 2200, 100, ' RPM', 'var(--lift)')}
-      ${slider('旋翼直径', 'rotordiameter', 0.25, isVtol ? 0.9 : 0.6, s.rotorDiameter ?? 0.42, 0.01, ' m', 'var(--lift)')}
+      ${slider('旋翼直径', 'rotordiameter', rotorDiameterRange[0], rotorDiameterRange[1], s.rotorDiameter ?? 0.42, 0.01, ' m', 'var(--lift)')}
       ${slider(isVtol ? '环境风速' : '风速', 'wind', 0, 15, s.windSpeed, 0.5, ' m/s', 'var(--wind)')}
       ${slider('风向', 'wdir', 0, 360, s.windDirDeg, 5, '°', 'var(--wind)')}
       ${slider('垂直气流', 'updraft', -6, 6, s.updraft ?? 0, 0.5, ' m/s', 'var(--warn)')}
@@ -87,7 +117,7 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
         <input type="checkbox" id="engine" ${(s.engineOn ?? true) ? 'checked' : ''}> 发动机（关闭演示自转）
       </label>` : ''}
       <label style="display:block;margin-top:12px">
-        <span class="field-label">材料</span>
+        <span class="field-label">结构材料</span>
         <select id="material">
           ${Object.values(MATERIALS).map((m) => `<option value="${m.id}" ${m.id === s.materialId ? 'selected' : ''}>${m.name}</option>`).join('')}
         </select>
@@ -129,25 +159,22 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
 
   panel.querySelector('#category').onchange = (e) => {
     const c = e.target.value;
+    const firstSubtype = Object.keys(DRONES[c].subtypes)[0];
     onCategoryChange({
       ...DRONES[c].defaults,
+      ...DRONES[c].subtypes[firstSubtype].defaults,
       category: c,
-      subtype: Object.keys(DRONES[c].subtypes)[0],
+      subtype: firstSubtype,
     });
   };
-  panel.querySelector('#subtype').onchange = (e) => onSubtypeChange({ subtype: e.target.value });
+  panel.querySelector('#subtype').onchange = (e) => {
+    const nextSubtype = e.target.value;
+    onSubtypeChange({ ...subs[nextSubtype].defaults, subtype: nextSubtype });
+  };
 
   // Fix #12: rAF 合并——同一帧内多次滑块拖动只触发一次 state.set
-  let pendingPatch = null;
-  let flushScheduled = false;
-  function scheduleFlush() {
-    if (flushScheduled) return;
-    flushScheduled = true;
-    requestAnimationFrame(() => {
-      flushScheduled = false;
-      if (pendingPatch) { state.set(pendingPatch); pendingPatch = null; }
-    });
-  }
+  const patchScheduler = createPatchScheduler(state);
+  panel.__disposeDroneControls = () => patchScheduler.dispose();
 
   const bind = (id, key, accent) => {
     const el = panel.querySelector(`#${id}`);
@@ -157,8 +184,7 @@ export function createUI(panel, { state, onSubtypeChange, onCategoryChange = () 
     el.oninput = () => {
       valueEl.textContent = el.value + unit;
       paintRange(el, accent);
-      pendingPatch = { ...pendingPatch, [key]: Number(el.value) };
-      scheduleFlush();
+      patchScheduler.schedule({ [key]: Number(el.value) });
     };
   };
   bind('aoa', 'aoaDeg', 'var(--lift)');
@@ -182,7 +208,9 @@ const STATUS_META = {
   stall: { label: '升力不足 ▼', bg: 'rgba(239,68,68,.15)', fg: 'var(--weight)' },
 };
 
-export function renderReadout(el, { totalLift, net, weight, aoaDeg, aeroDrag, material, heli, vtol }) {
+export function renderReadout(el, {
+  totalLift, net, weight, aoaDeg, aeroDrag, liftDragRatioValue, material, heli, vtol,
+}) {
   const meta = STATUS_META[net.status];
   const ratio = weight > 0 ? net.effectiveLift / weight : 0;
   const pct = Math.max(0, Math.min(100, (ratio / 1.5) * 100));
@@ -191,7 +219,7 @@ export function renderReadout(el, { totalLift, net, weight, aoaDeg, aeroDrag, ma
   el.innerHTML = `
     <div class="readout-row"><span>${vtol ? '合计垂直升力' : '总升力'}</span><span class="readout-value">${totalLift.toFixed(0)} N</span></div>
     <div class="readout-row"><span>有效升力（抗风后）</span><span class="readout-value">${net.effectiveLift.toFixed(0)} N</span></div>
-    <div class="readout-row"><span>气动阻力（随α）｜ 升阻比 L/D</span><span class="readout-value">${aeroDrag.toFixed(0)} N ｜ ${liftDragRatio(aoaDeg).toFixed(1)}</span></div>
+    <div class="readout-row"><span>气动阻力（随α）｜ 升阻比 L/D</span><span class="readout-value">${aeroDrag.toFixed(0)} N ｜ ${(liftDragRatioValue ?? liftDragRatio(aoaDeg)).toFixed(1)}</span></div>
     <div class="readout-row"><span>风阻 ｜ 抗风倾角 θ</span><span class="readout-value">${net.drag.toFixed(0)} N ｜ ${net.tiltDeg.toFixed(0)}°</span></div>
     ${heli ? `
     <div class="readout-row"><span>主旋翼扭矩</span><span class="readout-value">${heli.torque.toFixed(0)} N·m（示意）</span></div>
@@ -228,7 +256,7 @@ export function renderReadout(el, { totalLift, net, weight, aoaDeg, aeroDrag, ma
         <div class="ratio-tick"></div>
       </div>
     </div>
-    <div style="font-size:11.5px;color:var(--text-tertiary);line-height:1.6;margin-top:2px">最大升力 @${maxLiftAoa()}°　最大升阻比 @${maxLDAoa()}°</div>
+    <div style="font-size:11.5px;color:var(--text-tertiary);line-height:1.6;margin-top:2px">最大升力 @${maxLiftAoa()}°　最大升阻比 @${vtol?.maxLDAoa ?? maxLDAoa()}°</div>
     <div class="material-note"><b>${material.name}</b> 适用：${material.useCase}</div>`;
 }
 

@@ -1,4 +1,7 @@
-import { liftCoefficient, liftDragRatio, maxLiftAoa, maxLDAoa } from '../aero/aero.js';
+import {
+  fixedWingLiftDragRatio, liftCoefficient, liftDragRatio, maxFixedWingLDAoa,
+  maxLiftAoa, maxLDAoa,
+} from '../aero/aero.js';
 import { setupHiDPICanvas } from './canvas.js';
 
 // 配色（dataviz 技能：categorical 定序色板，深色画布档位，已用 validate_palette.js 校验
@@ -16,17 +19,22 @@ export function createAeroChart(canvas) {
   const padL = 46, padR = 12, padT = 24, padB = 52;
   const x0 = padL, x1 = W - padR, y0 = H - padB, y1 = padT;
   const AOA_MAX = 30;
-  // 预采样曲线与量程
-  const samples = [];
-  let clMax = 0, ldMax = 0;
-  for (let a = 0; a <= AOA_MAX; a += 0.5) {
-    const cl = liftCoefficient(a), ld = liftDragRatio(a);
-    samples.push({ a, cl, ld });
-    clMax = Math.max(clMax, cl); ldMax = Math.max(ldMax, ld);
-  }
   const sx = (a) => x0 + (a / AOA_MAX) * (x1 - x0);
-  const syCL = (cl) => y0 - (cl / clMax) * (y0 - y1);
-  const syLD = (ld) => y0 - (ld / ldMax) * (y0 - y1);
+
+  function sampleProfile(aspectRatio) {
+    const samples = [];
+    let clMax = 0, ldMax = 0;
+    for (let a = 0; a <= AOA_MAX; a += 0.5) {
+      const cl = liftCoefficient(a);
+      const ld = aspectRatio == null
+        ? liftDragRatio(a)
+        : fixedWingLiftDragRatio(a, aspectRatio);
+      samples.push({ a, cl, ld });
+      clMax = Math.max(clMax, cl);
+      ldMax = Math.max(ldMax, ld);
+    }
+    return { samples, clMax, ldMax };
+  }
 
   function gridAndTicks() {
     // 横向网格 + 纵轴刻度(归一化 0/0.5/1.0)
@@ -62,7 +70,7 @@ export function createAeroChart(canvas) {
     g.restore();
   }
 
-  function curve(color, sy, key) {
+  function curve(samples, color, sy, key) {
     g.strokeStyle = color; g.lineWidth = 2; g.beginPath();
     samples.forEach((s, i) => { const X = sx(s.a), Y = sy(s[key]); i ? g.lineTo(X, Y) : g.moveTo(X, Y); });
     g.stroke();
@@ -86,18 +94,26 @@ export function createAeroChart(canvas) {
     return x + 16 + g.measureText(label).width + 14;
   }
 
-  function draw(aoaDeg) {
+  function draw(aoaDeg, { aspectRatio } = {}) {
+    const profile = sampleProfile(aspectRatio);
+    const syCL = (cl) => y0 - (cl / profile.clMax) * (y0 - y1);
+    const syLD = (ld) => y0 - (ld / profile.ldMax) * (y0 - y1);
     beginFrame();
     // 轴
     g.strokeStyle = AXIS_COLOR; g.lineWidth = 1;
     g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y0); g.moveTo(x0, y0); g.lineTo(x0, y1); g.stroke();
     gridAndTicks();
     // 曲线
-    curve(CL_COLOR, syCL, 'cl');
-    curve(LD_COLOR, syLD, 'ld');
+    curve(profile.samples, CL_COLOR, syCL, 'cl');
+    curve(profile.samples, LD_COLOR, syLD, 'ld');
     // 特殊点（虚线+端点圆点，标签用中性墨色，颜色只承载在标记本身上）
     marker(maxLiftAoa(), CL_COLOR, '最大升力', 30);
-    marker(maxLDAoa(), LD_COLOR, '最大升阻比', 30);
+    marker(
+      aspectRatio == null ? maxLDAoa() : maxFixedWingLDAoa(aspectRatio),
+      LD_COLOR,
+      '最大升阻比',
+      30,
+    );
     // 当前 α 游标
     const X = sx(aoaDeg);
     g.strokeStyle = INK_PRIMARY; g.lineWidth = 1.5;

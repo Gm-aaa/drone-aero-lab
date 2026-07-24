@@ -12,6 +12,11 @@ describe('DRONES 数据', () => {
     expect(DRONES.multirotor.subtypes.hexa.rotorCount).toBe(6);
     expect(DRONES.multirotor.subtypes.octa.rotorCount).toBe(8);
   });
+  it('更多旋翼对应更高的固定设备和结构质量', () => {
+    const { quad, hexa, octa } = DRONES.multirotor.subtypes;
+    expect(hexa.massModel.fixedMass).toBeGreaterThan(quad.massModel.fixedMass);
+    expect(octa.massModel.structuralVolume).toBeGreaterThan(hexa.massModel.structuralVolume);
+  });
 });
 
 describe('buildSubtypeParts', () => {
@@ -30,6 +35,10 @@ describe('buildSubtypeParts', () => {
 });
 
 describe('DRONES.helicopter', () => {
+  it('默认控件值就是各子类的真实主旋翼直径', () => {
+    expect(DRONES.helicopter.subtypes.tailrotor.defaults.rotorDiameter).toBe(1.6);
+    expect(DRONES.helicopter.subtypes.coaxial.defaults.rotorDiameter).toBe(1.4);
+  });
   it('含 tailrotor 与 coaxial 两子类', () => {
     expect(Object.keys(DRONES.helicopter.subtypes)).toEqual(
       expect.arrayContaining(['tailrotor', 'coaxial']),

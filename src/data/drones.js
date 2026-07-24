@@ -22,18 +22,31 @@ export const DRONES = {
   multirotor: {
     name: '多旋翼',
     defaults: { aoaDeg: 8, rpm: 2200, rotorDiameter: 0.42 },
+    controls: { rotorDiameter: [0.25, 0.6] },
     subtypes: {
-      quad: { name: '四轴', rotorCount: 4, arms: armLayout(4), parts: staticParts },
-      hexa: { name: '六轴', rotorCount: 6, arms: armLayout(6), parts: staticParts },
-      octa: { name: '八轴', rotorCount: 8, arms: armLayout(8), parts: staticParts },
+      quad: {
+        name: '四轴', rotorCount: 4, arms: armLayout(4), parts: staticParts,
+        massModel: { fixedMass: 3, structuralVolume: 1.9 },
+      },
+      hexa: {
+        name: '六轴', rotorCount: 6, arms: armLayout(6), parts: staticParts,
+        massModel: { fixedMass: 4, structuralVolume: 2.6 },
+      },
+      octa: {
+        name: '八轴', rotorCount: 8, arms: armLayout(8), parts: staticParts,
+        massModel: { fixedMass: 5, structuralVolume: 3.4 },
+      },
     },
   },
   helicopter: {
     name: '直升机',
-    defaults: { aoaDeg: 8, rpm: 2200, rotorDiameter: 0.42, cyclicDeg: 0, tailPitch: 6, engineOn: true },
+    defaults: { aoaDeg: 8, rpm: 2200, rotorDiameter: 1.6, cyclicDeg: 0, tailPitch: 6, engineOn: true },
+    controls: { rotorDiameter: [1.0, 2.0] },
     subtypes: {
       tailrotor: {
-        name: '单旋翼带尾桨', config: 'tailrotor', mainRotorDiameter: 1.6, tailArm: 1.5,
+        name: '单旋翼带尾桨', config: 'tailrotor', tailArm: 1.5,
+        defaults: { rotorDiameter: 1.6 },
+        massModel: { fixedMass: 45, structuralVolume: 20 },
         parts: [
           { id: 'fuselage', name: '机身', desc: '承载动力、燃料/电池与航电的主体结构。',
             geometry: { type: 'box', args: [1.0, 0.42, 0.42] }, position: [0, 0.30, 0], materialRole: 'structural' },
@@ -64,7 +77,9 @@ export const DRONES = {
         ],
       },
       coaxial: {
-        name: '共轴双旋翼', config: 'coaxial', mainRotorDiameter: 1.4,
+        name: '共轴双旋翼', config: 'coaxial',
+        defaults: { rotorDiameter: 1.4 },
+        massModel: { fixedMass: 42, structuralVolume: 20 },
         parts: [
           { id: 'fuselage', name: '机身', desc: '共轴构型机身更紧凑，无长尾梁需求。',
             geometry: { type: 'box', args: [0.82, 0.40, 0.40] }, position: [0, 0.28, 0], materialRole: 'structural' },
@@ -102,11 +117,13 @@ export const DRONES = {
       aoaDeg: 8, rpm: 2600, rotorDiameter: 0.58,
       transitionDeg: 0, airspeed: 0, wingAoaDeg: 6,
     },
+    controls: { rotorDiameter: [0.35, 0.9] },
     subtypes: {
       tiltrotor: {
         name: '倾转旋翼', config: 'tiltrotor', rotorCount: 2,
-        wingArea: 1.65, wingSpan: 2.8, aspectRatio: 5.8, bodyVolume: 19,
+        wingArea: 1.65, wingSpan: 2.8, aspectRatio: 5.8,
         rotorLiftScale: 1.9,
+        massModel: { fixedMass: 18, structuralVolume: 7.75 },
         parts: [
           { id: 'fuselage', name: '流线型机身', desc: '容纳载荷、能源与飞控；巡航时尽量减小迎风阻力。',
             geometry: { type: 'box', args: [1.75, 0.30, 0.34] }, position: [0, 0.12, 0], materialRole: 'structural' },
@@ -136,8 +153,9 @@ export const DRONES = {
       },
       liftcruise: {
         name: '升力＋巡航', config: 'liftcruise', rotorCount: 4,
-        wingArea: 1.45, wingSpan: 2.65, aspectRatio: 6.1, bodyVolume: 19,
+        wingArea: 1.45, wingSpan: 2.65, aspectRatio: 6.1,
         rotorLiftScale: 1.0,
+        massModel: { fixedMass: 19.5, structuralVolume: 7.4 },
         parts: [
           { id: 'fuselage', name: '流线型机身', desc: '连接机翼、升力系统与巡航推进系统。',
             geometry: { type: 'box', args: [1.85, 0.28, 0.32] }, position: [0, 0.12, 0], materialRole: 'structural' },
